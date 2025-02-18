@@ -1,0 +1,20 @@
+# Ignorer le dossier node_modules
+node_modules/
+
+# Ignorer les fichiers de configuration sensibles
+.env
+*.env
+
+# Ignorer les fichiers de logs
+*.log
+
+# Ignorer les fichiers de la base de données SQLite (optionnel)
+maBaseDeDonnees.sqlite
+
+# Ignorer les fichiers de l'éditeur (comme VS Code)
+.vscode/
+.idea/
+
+# Ignorer les fichiers temporaires
+*.tmp
+*.temp
