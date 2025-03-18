@@ -76,6 +76,7 @@ grpc-tp/
 ├── package.json   # Configuration du projet Node.js
 └── img/           # Répertoire contenant les images de test Postman
     └── postman.png
+    └── cmd.png
 ```
 
 ## 📝 Étapes d'Implémentation Détaillées
