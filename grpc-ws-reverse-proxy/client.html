@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RealTime Chat</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col">
+    <div class="container mx-auto max-w-2xl flex-grow flex flex-col px-4 py-8">
+        <div class="bg-white shadow-xl rounded-lg overflow-hidden flex flex-col flex-grow">
+            <!-- En-tête du chat -->
+            <div class="bg-indigo-600 text-white p-4 flex justify-between items-center">
+                <h1 class="text-xl font-bold flex items-center">
+                    <i data-feather="message-circle" class="mr-2"></i>
+                    RealTime Chat
+                </h1>
+                <div class="flex items-center space-x-2">
+                    <span id="connection-status" class="text-sm text-green-200">
+                        Connecté
+                    </span>
+                    <div id="connection-indicator" class="w-3 h-3 bg-green-400 rounded-full"></div>
+                </div>
+            </div>
+
+            <!-- Zone de messages -->
+            <div id="chat-box" class="flex-grow overflow-y-auto p-4 space-y-3" style="max-height: 500px;">
+                <div class="text-center text-gray-500 py-4">
+                    Début de la conversation
+                </div>
+            </div>
+
+            <!-- Zone de saisie de message -->
+            <div class="bg-gray-100 p-4 border-t">
+                <form id="message-form" class="flex">
+                    <input 
+                        type="text" 
+                        id="message-input" 
+                        placeholder="Tapez votre message..." 
+                        class="flex-grow px-3 py-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        required
+                    >
+                    <button 
+                        type="submit" 
+                        class="bg-indigo-600 text-white px-4 py-2 rounded-r-lg hover:bg-indigo-700 transition duration-300 flex items-center"
+                    >
+                        <i data-feather="send" class="mr-2"></i>
+                        Envoyer
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Boutons additionnels -->
+        <div class="mt-4 flex justify-between">
+            <button 
+                id="history-btn" 
+                class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition duration-300 flex items-center"
+            >
+                <i data-feather="clock" class="mr-2"></i>
+                Charger Historique
+            </button>
+            <button 
+                id="clear-btn" 
+                class="bg-red-100 text-red-600 px-4 py-2 rounded-lg hover:bg-red-200 transition duration-300 flex items-center"
+            >
+                <i data-feather="trash-2" class="mr-2"></i>
+                Effacer Chat
+            </button>
+        </div>
+    </div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+    const chatBox = document.getElementById('chat-box');
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const historyBtn = document.getElementById('history-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const connectionStatus = document.getElementById('connection-status');
+    const connectionIndicator = document.getElementById('connection-indicator');
+
+    // Initialisation des icônes Feather
+    feather.replace();
+
+    // Gestion de la connexion WebSocket
+    const ws = new WebSocket('ws://localhost:8080');
+
+    function updateConnectionStatus(isConnected) {
+        connectionStatus.textContent = isConnected ? 'Connecté' : 'Déconnecté';
+        connectionIndicator.classList.toggle('bg-green-400', isConnected);
+        connectionIndicator.classList.toggle('bg-red-400', !isConnected);
+    }
+
+    ws.onopen = () => {
+        updateConnectionStatus(true);
+        addSystemMessage('Connecté au serveur de chat');
+    };
+
+    ws.onclose = () => {
+        updateConnectionStatus(false);
+        addSystemMessage('Déconnecté du serveur');
+    };
+
+    ws.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            console.log('Message reçu:', data);  // Ajout d'un log pour le débogage
+
+            if (data.chat_message) {
+                addMessage(data.chat_message.sender_id, data.chat_message.content, 'received');
+            } else if (data.history) {
+                addSystemMessage('-- Début de l\'historique --');
+                data.history.forEach(msg => {
+                    addMessage(msg.sender_id, msg.content, 'history');
+                });
+                addSystemMessage('-- Fin de l\'historique --');
+            } else if (data.error) {
+                addSystemMessage(`Erreur : ${data.error}`);
+            }
+        } catch (error) {
+            console.error('Erreur de parsing JSON:', error);
+            addSystemMessage('Erreur de réception du message');
+        }
+    };
+
+    ws.onerror = (error) => {
+        console.error('Erreur WebSocket:', error);
+        addSystemMessage(`Erreur : ${error}`);
+    };
+
+    messageForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const message = messageInput.value.trim();
+        if (message && ws.readyState === WebSocket.OPEN) {
+            const chatMessage = {
+                chat_message: {
+                    id: `msg_${Date.now()}`,
+                    room_id: 'room1',
+                    sender_id: 'client1',
+                    content: message
+                }
+            };
+            ws.send(JSON.stringify(chatMessage));
+            addMessage('Vous', message, 'sent');
+            messageInput.value = '';
+        }
+    });
+
+    historyBtn.addEventListener('click', () => {
+        if (ws.readyState === WebSocket.OPEN) {
+            console.log('Demande historique envoyée'); // Log de débogage
+            ws.send(JSON.stringify({
+                get_history: {
+                    room_id: 'room1',
+                    limit: 10
+                }
+            }));
+        } else {
+            addSystemMessage('Connexion WebSocket non établie');
+        }
+    });
+
+    clearBtn.addEventListener('click', () => {
+        chatBox.innerHTML = '<div class="text-center text-gray-500 py-4">Chat effacé</div>';
+    });
+
+    function addMessage(sender, content, type = 'received') {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('flex');
+        
+        const styles = {
+            'sent': 'bg-indigo-100 self-end',
+            'received': 'bg-gray-200 self-start',
+            'history': 'bg-gray-100 opacity-70'
+        };
+
+        messageElement.innerHTML = `
+            <div class="px-4 py-2 rounded-lg max-w-xs ${styles[type]}">
+                <span class="block text-xs text-gray-600 mb-1">${sender}</span>
+                <span>${content}</span>
+            </div>
+        `;
+
+        chatBox.appendChild(messageElement);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function addSystemMessage(content) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('text-center', 'text-gray-500', 'text-sm', 'my-2');
+        messageElement.textContent = content;
+        chatBox.appendChild(messageElement);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+});
+    </script>
+</body>
+</html>

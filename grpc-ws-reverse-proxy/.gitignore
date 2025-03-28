@@ -1,0 +1,42 @@
+# Dépendances Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Fichiers de build
+dist/
+build/
+out/
+.DS_Store
+
+# Fichiers d'environnement
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Cache et temporaires
+.cache/
+.tmp/
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+
+# Dossiers spécifiques aux éditeurs
+.vscode/
+.idea/
+*.code-workspace
+
+# Tests
+coverage/
+jest-cache/
+jest-stare/
