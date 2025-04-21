@@ -14,8 +14,6 @@ Ce projet démontre l'intégration d'Apache Kafka avec Node.js pour la gestion d
 - [Exécution du système](#-exécution-du-système)
 - [API REST et endpoints](#-api-rest-et-endpoints)
 - [Test des fonctionnalités](#-test-des-fonctionnalités)
-- [Bonnes pratiques](#-bonnes-pratiques)
-- [Extensions possibles](#-extensions-possibles)
 - [Ressources](#-ressources)
 
 ## 🎯 Objectifs
@@ -189,7 +187,7 @@ kafka-nodejs-project/
 ├── producer.js           # Producteur Kafka
 ├── consumer-db.js        # Consommateur Kafka avec stockage MongoDB
 ├── api.js                # API REST Express
-└── screenshots/          # Dossier pour les captures d'écran (à créer)
+└── screenshots/          # Dossier pour les captures d'écran 
 ```
 
 ## 🧠 Explication du code
