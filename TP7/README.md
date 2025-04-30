@@ -104,13 +104,13 @@ mongod --dbpath /data/db
 ### 2. Démarrer les microservices
 ```bash
 # Microservice Films
-node movieMicroserviceWithKafkaMongoDB.js
+node movieMicroservice.js
 
 # Microservice Séries TV
-node tvShowMicroserviceWithKafkaMongoDB.js
+node tvShowMicroservice.js
 
 # API Gateway
-node apiGatewayComplete.js
+node apiGateway.js
 ```
 
 ## 📊 Test de l'application
