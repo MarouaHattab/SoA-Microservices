@@ -1,0 +1,63 @@
+# Dépendances
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Fichiers d'environnement
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Fichiers de configuration locaux
+config/local.js
+
+# Données MongoDB locales
+data/db/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Répertoires de build
+dist/
+build/
+out/
+
+# Fichiers du système d'exploitation
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Éditeurs et IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+.classpath
+.factorypath
+
+# Fichiers temporaires
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Kafka
+kafka-logs/
+zookeeper-data/
+
+# Fichiers de test
+coverage/
+.nyc_output/
