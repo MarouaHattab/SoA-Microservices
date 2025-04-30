@@ -150,13 +150,6 @@ mutation {
 }
 ```
 
-## 🧪 Tests automatisés
-
-Pour exécuter les tests automatisés :
-
-```bash
-node test-movie-service.js
-```
 
 ## 📝 Structure du projet
 
