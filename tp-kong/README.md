@@ -142,6 +142,11 @@ networks:
    curl http://localhost:8000/products
    ```
 
+4. **Accéder à l'API Admin de Kong** ⚙️
+   ```bash
+   curl http://localhost:8001/services
+   ```
+
 ## ✅ Résultats des tests
 
 Voici le résultat des tests effectués avec curl :

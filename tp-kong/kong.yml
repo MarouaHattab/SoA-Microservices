@@ -1,12 +1,18 @@
+# Version du format de la configuration déclarative de Kong
 _format_version: "1.1"
+
+# Définition des services exposés par l'API Gateway
 services:
-  - name: service-a
-    url: http://service-a:3001/  # Notez le slash à la fin
-    routes:
-      - name: users-route
-        paths: ["/users"]
-  - name: service-b
-    url: http://service-b:3002/  # Notez le slash à la fin
-    routes:
-      - name: products-route
-        paths: ["/products"]
+  # Service A - Microservice des utilisateurs
+  - name: service-a                    # Nom unique pour identifier le service
+    url: http://service-a:3001/        # URL du service (utilise le nom du service Docker)
+    routes:                            # Configuration des routes pour ce service
+      - name: users-route              # Nom unique pour identifier la route
+        paths: ["/users"]              # Chemin(s) qui seront routés vers ce service
+
+  # Service B - Microservice des produits
+  - name: service-b                    # Nom unique pour identifier le service
+    url: http://service-b:3002/        # URL du service (utilise le nom du service Docker)
+    routes:                            # Configuration des routes pour ce service
+      - name: products-route           # Nom unique pour identifier la route
+        paths: ["/products"]           # Chemin(s) qui seront routés vers ce service

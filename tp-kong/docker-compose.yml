@@ -1,43 +1,40 @@
 services:
+  # Service A - Microservice des utilisateurs
   service-a:
-    build: ./service-a
+    build: ./service-a          # Chemin vers le dossier contenant le Dockerfile pour service-a
     networks:
-      - kong-net
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3001/"]
-      interval: 5s
-      timeout: 2s
-      retries: 10
+      - kong-net                # Connexion au réseau kong-net pour permettre la communication
 
+  # Service B - Microservice des produits
   service-b:
-    build: ./service-b
+    build: ./service-b          # Chemin vers le dossier contenant le Dockerfile pour service-b
     networks:
-      - kong-net
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3002/"]
-      interval: 5s
-      timeout: 2s
-      retries: 10
+      - kong-net                # Connexion au réseau kong-net pour permettre la communication
 
+  # Kong API Gateway - Point d'entrée pour accéder aux microservices
   kong:
-    image: kong:latest
+    image: kong:latest          # Utilise l'image Docker officielle de Kong
     environment:
-      KONG_DATABASE: "off"
+      # Configuration en mode DB-less (sans base de données)
+      KONG_DATABASE: "off"      
+      # Chemin vers le fichier de configuration déclarative
       KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      # Configuration de l'API d'administration pour écouter sur toutes les interfaces
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      # URL pour l'interface graphique d'administration
+      KONG_ADMIN_GUI_URL: "http://localhost:8002"
+      # Niveau de log pour le débogage
       KONG_LOG_LEVEL: "debug"
     volumes:
+      # Montage du fichier kong.yml en lecture seule dans le conteneur
       - ./kong.yml:/etc/kong/kong.yml:ro
     ports:
-      - "8000:8000"
-      - "8001:8001"
+      - "8000:8000"            # Port pour le proxy API (pour les clients)
+      - "8001:8001"            # Port pour l'API d'administration de Kong
     networks:
-      - kong-net
-    depends_on:
-      service-a:
-        condition: service_healthy
-      service-b:
-        condition: service_healthy
+      - kong-net               # Connexion au réseau kong-net pour permettre la communication
 
+# Définition des réseaux utilisés
 networks:
-  kong-net:
-    driver: bridge
+  kong-net:                    # Réseau partagé entre tous les services
+    driver: bridge             # Type de réseau bridge (standard pour Docker)

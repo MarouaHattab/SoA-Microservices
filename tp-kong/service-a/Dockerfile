@@ -1,7 +1,20 @@
+# Utiliser Node.js 22 avec Alpine Linux comme image de base (légère)
 FROM node:22-alpine
+
+# Définir le répertoire de travail dans le conteneur
 WORKDIR /app
+
+# Copier les fichiers package.json et package-lock.json (si disponible)
 COPY package*.json ./
+
+# Installer les dépendances en mode production uniquement (pas les devDependencies)
 RUN npm install --production
+
+# Copier le fichier index.js dans le conteneur
 COPY index.js ./
-EXPOSE 3002
+
+# Exposer le port 3001 pour que les autres conteneurs puissent s'y connecter
+EXPOSE 3001
+
+# Commande pour démarrer l'application
 CMD ["node", "index.js"]
