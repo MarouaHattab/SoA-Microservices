@@ -1,0 +1,43 @@
+services:
+  service-a:
+    build: ./service-a
+    networks:
+      - kong-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3001/"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+  service-b:
+    build: ./service-b
+    networks:
+      - kong-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3002/"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+  kong:
+    image: kong:latest
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      KONG_LOG_LEVEL: "debug"
+    volumes:
+      - ./kong.yml:/etc/kong/kong.yml:ro
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    networks:
+      - kong-net
+    depends_on:
+      service-a:
+        condition: service_healthy
+      service-b:
+        condition: service_healthy
+
+networks:
+  kong-net:
+    driver: bridge
