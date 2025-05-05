@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package property;
+
+service PropertyService {
+  rpc GetProperty (PropertyRequest) returns (PropertyResponse);
+  rpc SearchProperties (PropertySearchRequest) returns (PropertySearchResponse);
+  rpc CreateProperty (CreatePropertyRequest) returns (PropertyResponse);
+  rpc UpdateProperty (UpdatePropertyRequest) returns (PropertyResponse);
+  rpc DeleteProperty (PropertyRequest) returns (DeleteResponse);
+}
+
+message PropertyRequest {
+  string id = 1;
+}
+
+message PropertySearchRequest {
+  string location = 1;
+  float min_price = 2;
+  float max_price = 3;
+  int32 bedrooms = 4;
+  int32 bathrooms = 5;
+  float min_area = 6;
+  string property_type = 7;
+  int32 page = 8;
+  int32 limit = 9;
+}
+
+message CreatePropertyRequest {
+  string title = 1;
+  string description = 2;
+  float price = 3;
+  string location = 4;
+  string address = 5;
+  int32 bedrooms = 6;
+  int32 bathrooms = 7;
+  float area = 8;
+  string property_type = 9;
+  string owner_id = 10;
+  repeated string features = 11;
+  repeated string images = 12;
+}
+
+message UpdatePropertyRequest {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  float price = 4;
+  string location = 5;
+  string address = 6;
+  int32 bedrooms = 7;
+  int32 bathrooms = 8;
+  float area = 9;
+  string property_type = 10;
+  string owner_id = 11;
+  repeated string features = 12;
+  repeated string images = 13;
+}
+
+message Property {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  float price = 4;
+  string location = 5;
+  string address = 6;
+  int32 bedrooms = 7;
+  int32 bathrooms = 8;
+  float area = 9;
+  string property_type = 10;
+  string owner_id = 11;
+  repeated string features = 12;
+  repeated string images = 13;
+  string created_at = 14;
+  string updated_at = 15;
+}
+
+message PropertyResponse {
+  Property property = 1;
+}
+
+message PropertySearchResponse {
+  repeated Property properties = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 limit = 4;
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string message = 2;
+}

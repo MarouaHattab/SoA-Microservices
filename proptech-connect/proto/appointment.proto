@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package appointment;
+
+service AppointmentService {
+  rpc GetAppointment (AppointmentRequest) returns (AppointmentResponse);
+  rpc GetUserAppointments (UserAppointmentsRequest) returns (AppointmentsResponse);
+  rpc GetPropertyAppointments (PropertyAppointmentsRequest) returns (AppointmentsResponse);
+  rpc CreateAppointment (CreateAppointmentRequest) returns (AppointmentResponse);
+  rpc UpdateAppointment (UpdateAppointmentRequest) returns (AppointmentResponse);
+  rpc DeleteAppointment (AppointmentRequest) returns (DeleteResponse);
+}
+
+message AppointmentRequest {
+  string id = 1;
+}
+
+message UserAppointmentsRequest {
+  string user_id = 1;
+}
+
+message PropertyAppointmentsRequest {
+  string property_id = 1;
+}
+
+message CreateAppointmentRequest {
+  string property_id = 1;
+  string user_id = 2;
+  string agent_id = 3;
+  string date_time = 4;
+  string status = 5; // "pending", "confirmed", "cancelled", "completed"
+  string notes = 6;
+}
+
+message UpdateAppointmentRequest {
+  string id = 1;
+  string property_id = 2;
+  string user_id = 3;
+  string agent_id = 4;
+  string date_time = 5;
+  string status = 6;
+  string notes = 7;
+}
+
+message Appointment {
+  string id = 1;
+  string property_id = 2;
+  string user_id = 3;
+  string agent_id = 4;
+  string date_time = 5;
+  string status = 6;
+  string notes = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+message AppointmentResponse {
+  Appointment appointment = 1;
+}
+
+message AppointmentsResponse {
+  repeated Appointment appointments = 1;
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string message = 2;
+}

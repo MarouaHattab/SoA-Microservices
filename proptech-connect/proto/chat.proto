@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package chat;
+
+service ChatService {
+  rpc SendMessage (SendMessageRequest) returns (MessageResponse);
+  rpc GetMessages (GetMessagesRequest) returns (MessagesResponse);
+  rpc GetConversations (UserRequest) returns (ConversationsResponse);
+  rpc AskAI (AIRequest) returns (AIResponse);
+}
+
+message SendMessageRequest {
+  string sender_id = 1;
+  string receiver_id = 2;
+  string content = 3;
+  string conversation_id = 4;
+}
+
+message GetMessagesRequest {
+  string conversation_id = 1;
+}
+
+message UserRequest {
+  string user_id = 1;
+}
+
+message Message {
+  string id = 1;
+  string sender_id = 2;
+  string receiver_id = 3;
+  string content = 4;
+  string conversation_id = 5;
+  bool is_read = 6;
+  string created_at = 7;
+}
+
+message Conversation {
+  string id = 1;
+  repeated string participants = 2;
+  Message last_message = 3;
+  string created_at = 4;
+  string updated_at = 5;
+}
+
+message MessageResponse {
+  Message message = 1;
+}
+
+message MessagesResponse {
+  repeated Message messages = 1;
+}
+
+message ConversationsResponse {
+  repeated Conversation conversations = 1;
+}
+
+message AIRequest {
+  string user_id = 1;
+  string query = 2;
+  string conversation_id = 3;
+}
+
+message AIResponse {
+  string response = 1;
+  repeated Property suggested_properties = 2;
+}
+
+message Property {
+  string id = 1;
+  string title = 2;
+  float price = 3;
+  string location = 4;
+  string property_type = 5;
+  string image_url = 6;
+}
