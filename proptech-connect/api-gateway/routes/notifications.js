@@ -1,68 +1,124 @@
+// api-gateway/routes/notifications.js
 const express = require('express');
 const router = express.Router();
-const { authenticateJWT } = require('../middleware/auth');
+const { authenticateJWT, isAdmin } = require('../middleware/auth');
+const grpcClients = require('../grpc-clients');
 
 // Middleware d'authentification pour toutes les routes
 router.use(authenticateJWT);
 
-// Récupérer toutes les notifications de l'utilisateur connecté
+// Récupérer toutes les notifications de l'utilisateur
 router.get('/', async (req, res) => {
   try {
-    // Dans un système réel, vous interrogeriez la base de données
-    // Ici, on simule des notifications
-    const notifications = [
-      {
-        id: '1',
-        userId: req.user.id,
-        type: 'new_property',
-        message: 'Une nouvelle propriété correspondant à vos critères a été ajoutée.',
-        relatedId: '123',
-        isRead: false,
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: '2',
-        userId: req.user.id,
-        type: 'appointment_reminder',
-        message: 'Rappel: vous avez une visite prévue demain à 14h.',
-        relatedId: '456',
-        isRead: true,
-        createdAt: new Date(Date.now() - 86400000).toISOString()
-      }
-    ];
+    const { unread_only, page, limit } = req.query;
     
-    res.json({ notifications });
+    const result = await grpcClients.notificationService.GetUserNotificationsAsync({
+      user_id: req.user.id,
+      unread_only: unread_only === 'true',
+      page: parseInt(page, 10) || 1,
+      limit: parseInt(limit, 10) || 20
+    });
+    
+    res.json(result);
   } catch (error) {
+    console.error('Error getting notifications:', error);
     res.status(500).json({ message: error.message });
   }
 });
 
 // Marquer une notification comme lue
-router.put('/:id/read', async (req, res) => {
+router.put('/:notificationId/read', async (req, res) => {
   try {
-    // Dans un système réel, vous mettriez à jour la base de données
-    // Ici, on simule une réponse
-    res.json({
-      id: req.params.id,
-      userId: req.user.id,
-      isRead: true,
-      message: 'Notification marquée comme lue'
+    const { notificationId } = req.params;
+    
+    const result = await grpcClients.notificationService.MarkNotificationAsReadAsync({
+      notification_id: notificationId,
+      user_id: req.user.id
     });
+    
+    res.json(result);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({ message: error.message });
   }
 });
 
-// Marquer toutes les notifications comme lues
-router.put('/read-all', async (req, res) => {
+// Mettre à jour les paramètres de notification
+router.put('/settings', async (req, res) => {
   try {
-    // Dans un système réel, vous mettriez à jour la base de données
-    // Ici, on simule une réponse
-    res.json({
-      success: true,
-      message: 'Toutes les notifications ont été marquées comme lues'
+    const { email_enabled, push_enabled, in_app_enabled, muted_types } = req.body;
+    
+    const result = await grpcClients.notificationService.UpdateNotificationSettingsAsync({
+      user_id: req.user.id,
+      email_enabled,
+      push_enabled,
+      in_app_enabled,
+      muted_types
     });
+    
+    res.json(result);
   } catch (error) {
+    console.error('Error updating notification settings:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Routes pour les administrateurs
+
+// Envoyer une notification à un utilisateur spécifique
+router.post('/admin/send', isAdmin, async (req, res) => {
+  try {
+    const { recipient_id, title, content, type, link, priority, requires_action } = req.body;
+    
+    if (!recipient_id || !title || !content) {
+      return res.status(400).json({ message: 'Recipient ID, title, and content are required' });
+    }
+    
+    const result = await grpcClients.notificationService.SendNotificationAsync({
+      sender_id: req.user.id,
+      recipient_id,
+      title,
+      content,
+      type,
+      link,
+      priority,
+      requires_action
+    });
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error sending notification:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Envoyer une notification à plusieurs utilisateurs
+router.post('/admin/send-bulk', isAdmin, async (req, res) => {
+  try {
+    const { recipient_ids, title, content, type, link, priority, requires_action } = req.body;
+    
+    if (!recipient_ids || !Array.isArray(recipient_ids) || recipient_ids.length === 0) {
+      return res.status(400).json({ message: 'Recipient IDs must be a non-empty array' });
+    }
+    
+    if (!title || !content) {
+      return res.status(400).json({ message: 'Title and content are required' });
+    }
+    
+    const result = await grpcClients.notificationService.SendBulkNotificationAsync({
+      sender_id: req.user.id,
+      recipient_ids,
+      title,
+      content,
+      type,
+      link,
+      priority,
+      requires_action
+    });
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error sending bulk notification:', error);
     res.status(500).json({ message: error.message });
   }
 });

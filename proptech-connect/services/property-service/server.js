@@ -4,30 +4,8 @@ const mongoose = require('mongoose');
 const { Kafka } = require('kafkajs');
 const Property = require('./models/Property');
 require('dotenv').config();
-
-// Connexion à MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/proptech-property', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => {
-  console.log('Connected to MongoDB');
-}).catch(err => {
-  console.error('Failed to connect to MongoDB', err);
-  process.exit(1);
-});
-
-// Connexion à Kafka
-const kafka = new Kafka({
-  clientId: 'property-service',
-  brokers: ['localhost:9092']
-});
-
-const producer = kafka.producer();
-producer.connect().then(() => {
-  console.log('Connected to Kafka');
-}).catch(err => {
-  console.error('Failed to connect to Kafka', err);
-});
+const { connectProducer, sendEvent } = require('./kafka-producer');
+let kafkaProducer;
 
 // Chargement du fichier proto
 const PROTO_PATH = '../../proto/property.proto';
@@ -46,7 +24,7 @@ const server = new grpc.Server();
 
 server.addService(propertyProto.PropertyService.service, {
   // Récupérer une propriété par ID
-  getProperty: async (call, callback) => {
+  GetProperty: async (call, callback) => {
     try {
       const property = await Property.findById(call.request.id);
       if (!property) {
@@ -65,7 +43,7 @@ server.addService(propertyProto.PropertyService.service, {
   },
   
   // Rechercher des propriétés
-  searchProperties: async (call, callback) => {
+  SearchProperties: async (call, callback) => {
     try {
       const { 
         location, min_price, max_price, bedrooms, 
@@ -122,26 +100,24 @@ server.addService(propertyProto.PropertyService.service, {
   },
   
   // Créer une nouvelle propriété
-  createProperty: async (call, callback) => {
+  CreateProperty: async (call, callback) => {
     try {
-      const newProperty = new Property(call.request);
+      const propertyData = call.request;
+      const newProperty = new Property(propertyData);
       const savedProperty = await newProperty.save();
       
-      // Publier un événement Kafka
-      await producer.send({
-        topic: 'property-events',
-        messages: [
-          { 
-            value: JSON.stringify({
-              event: 'PROPERTY_CREATED',
-              property: savedProperty
-            }) 
-          }
-        ]
+      // Envoyer un événement Kafka pour informer les autres services
+      await sendEvent('property-events', 'property-created', {
+        property_id: savedProperty._id.toString(),
+        owner_id: savedProperty.owner_id,
+        price: savedProperty.price,
+        location: savedProperty.location,
+        timestamp: new Date().toISOString()
       });
       
       callback(null, { property: savedProperty });
     } catch (error) {
+      console.error('Error in CreateProperty:', error);
       callback({
         code: grpc.status.INTERNAL,
         message: error.message
@@ -150,7 +126,7 @@ server.addService(propertyProto.PropertyService.service, {
   },
   
   // Mettre à jour une propriété
-  updateProperty: async (call, callback) => {
+  UpdateProperty: async (call, callback) => {
     try {
       const { id, ...propertyData } = call.request;
       
@@ -167,21 +143,18 @@ server.addService(propertyProto.PropertyService.service, {
         });
       }
       
-      // Publier un événement Kafka
-      await producer.send({
-        topic: 'property-events',
-        messages: [
-          { 
-            value: JSON.stringify({
-              event: 'PROPERTY_UPDATED',
-              property: updatedProperty
-            }) 
-          }
-        ]
+      // Envoyer un événement Kafka pour informer les autres services
+      await sendEvent('property-events', 'property-updated', {
+        property_id: updatedProperty._id.toString(),
+        owner_id: updatedProperty.owner_id,
+        price: updatedProperty.price,
+        location: updatedProperty.location,
+        timestamp: new Date().toISOString()
       });
       
       callback(null, { property: updatedProperty });
     } catch (error) {
+      console.error('Error in UpdateProperty:', error);
       callback({
         code: grpc.status.INTERNAL,
         message: error.message
@@ -190,7 +163,7 @@ server.addService(propertyProto.PropertyService.service, {
   },
   
   // Supprimer une propriété
-  deleteProperty: async (call, callback) => {
+  DeleteProperty: async (call, callback) => {
     try {
       const deletedProperty = await Property.findByIdAndDelete(call.request.id);
       
@@ -201,17 +174,10 @@ server.addService(propertyProto.PropertyService.service, {
         });
       }
       
-      // Publier un événement Kafka
-      await producer.send({
-        topic: 'property-events',
-        messages: [
-          { 
-            value: JSON.stringify({
-              event: 'PROPERTY_DELETED',
-              property_id: call.request.id
-            }) 
-          }
-        ]
+      // Envoyer un événement Kafka pour informer les autres services
+      await sendEvent('property-events', 'property-deleted', {
+        property_id: call.request.id,
+        timestamp: new Date().toISOString()
       });
       
       callback(null, { 
@@ -219,6 +185,7 @@ server.addService(propertyProto.PropertyService.service, {
         message: 'Property deleted successfully'
       });
     } catch (error) {
+      console.error('Error in DeleteProperty:', error);
       callback({
         code: grpc.status.INTERNAL,
         message: error.message
@@ -227,21 +194,37 @@ server.addService(propertyProto.PropertyService.service, {
   }
 });
 
-// Démarrer le serveur gRPC
+// Connexion à MongoDB et démarrage du serveur
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/proptech-property';
 const PORT = process.env.PORT || 50051;
-server.bindAsync(`0.0.0.0:${PORT}`, grpc.ServerCredentials.createInsecure(), (error, port) => {
-  if (error) {
-    console.error('Failed to bind server:', error);
-    return;
-  }
-  console.log(`Property service running on port ${port}`);
-  server.start();
-});
+
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log('Connected to MongoDB');
+    return connectProducer();
+  })
+  .then((producer) => {
+    kafkaProducer = producer;
+    // Démarrer le serveur gRPC
+    server.bindAsync(`0.0.0.0:${PORT}`, grpc.ServerCredentials.createInsecure(), (error, port) => {
+      if (error) {
+        console.error('Failed to bind server:', error);
+        return;
+      }
+      console.log(`Property service running on port ${port}`);
+      server.start();
+    });
+  })
+  .catch(error => {
+    console.error('Erreur de démarrage:', error);
+  });
 
 // Gérer la fermeture propre
 process.on('SIGINT', async () => {
   console.log('Shutting down property service...');
-  await producer.disconnect();
+  if (kafkaProducer) {
+    await kafkaProducer.disconnect();
+  }
   await mongoose.disconnect();
   process.exit(0);
 });

@@ -22,6 +22,13 @@ const authenticateJWT = (req, res, next) => {
     return res.status(401).json({ message: 'Authentication token is invalid' });
   }
 };
+exports.isAdmin = (req, res, next) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Accès refusé. Vous devez être administrateur.' });
+  }
+  
+  next();
+};
 
 module.exports = {
   authenticateJWT

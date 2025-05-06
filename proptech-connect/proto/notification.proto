@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package notification;
+
+service NotificationService {
+  // Envoyer une notification à un utilisateur spécifique
+  rpc SendNotification (NotificationRequest) returns (NotificationResponse);
+  
+  // Envoyer une notification à plusieurs utilisateurs
+  rpc SendBulkNotification (BulkNotificationRequest) returns (BulkNotificationResponse);
+  
+  // Récupérer les notifications d'un utilisateur
+  rpc GetUserNotifications (UserNotificationsRequest) returns (UserNotificationsResponse);
+  
+  // Marquer une notification comme lue
+  rpc MarkNotificationAsRead (NotificationReadRequest) returns (NotificationReadResponse);
+  
+  // Gérer les paramètres de notification d'un utilisateur
+  rpc UpdateNotificationSettings (NotificationSettingsRequest) returns (NotificationSettingsResponse);
+}
+
+message NotificationRequest {
+  string sender_id = 1;
+  string recipient_id = 2;
+  string title = 3;
+  string content = 4;
+  string type = 5; // info, success, warning, error
+  string link = 6; // lien optionnel vers une page/ressource
+  NotificationPriority priority = 7;
+  bool requires_action = 8;
+}
+
+message NotificationResponse {
+  string notification_id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message BulkNotificationRequest {
+  string sender_id = 1;
+  repeated string recipient_ids = 2;
+  string title = 3;
+  string content = 4;
+  string type = 5;
+  string link = 6;
+  NotificationPriority priority = 7;
+  bool requires_action = 8;
+}
+
+message BulkNotificationResponse {
+  repeated string notification_ids = 1;
+  int32 success_count = 2;
+  int32 failure_count = 3;
+  string message = 4;
+}
+
+message UserNotificationsRequest {
+  string user_id = 1;
+  bool unread_only = 2;
+  int32 page = 3;
+  int32 limit = 4;
+}
+
+message UserNotificationsResponse {
+  repeated Notification notifications = 1;
+  int32 total_count = 2;
+  int32 unread_count = 3;
+}
+
+message NotificationReadRequest {
+  string notification_id = 1;
+  string user_id = 2;
+}
+
+message NotificationReadResponse {
+  bool success = 1;
+}
+
+message NotificationSettingsRequest {
+  string user_id = 1;
+  bool email_enabled = 2;
+  bool push_enabled = 3;
+  bool in_app_enabled = 4;
+  repeated string muted_types = 5;
+}
+
+message NotificationSettingsResponse {
+  bool success = 1;
+  NotificationSettings settings = 2;
+}
+
+message Notification {
+  string id = 1;
+  string sender_id = 2;
+  string sender_name = 3;
+  string sender_role = 4;
+  string recipient_id = 5;
+  string title = 6;
+  string content = 7;
+  string type = 8;
+  string link = 9;
+  NotificationPriority priority = 10;
+  bool is_read = 11;
+  bool requires_action = 12;
+  string created_at = 13;
+}
+
+message NotificationSettings {
+  string user_id = 1;
+  bool email_enabled = 2;
+  bool push_enabled = 3;
+  bool in_app_enabled = 4;
+  repeated string muted_types = 5;
+  string updated_at = 6;
+}
+
+enum NotificationPriority {
+  LOW = 0;
+  NORMAL = 1;
+  HIGH = 2;
+  URGENT = 3;
+}

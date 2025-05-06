@@ -3,43 +3,29 @@ const protoLoader = require('@grpc/proto-loader');
 const path = require('path');
 const { promisify } = require('util');
 
-// Chemins corrects vers les fichiers proto
+// Options de chargement pour tous les proto
+const options = {
+  keepCase: true,
+  longs: String,
+  enums: String,
+  defaults: true,
+  oneofs: true
+};
+
+// Ajout des nouveaux chemins proto
 const propertyProtoPath = path.join(__dirname, '../../proto/property.proto');
 const userProtoPath = path.join(__dirname, '../../proto/user.proto');
 const appointmentProtoPath = path.join(__dirname, '../../proto/appointment.proto');
 const chatProtoPath = path.join(__dirname, '../../proto/chat.proto');
+const notificationProtoPath = path.join(__dirname, '../../proto/notification.proto');
 
-console.log('Chat proto path:', chatProtoPath);
-
+// Charger les définitions de proto
 const packageDefinition = {
-  property: protoLoader.loadSync(propertyProtoPath, {
-    keepCase: true,
-    longs: String,
-    enums: String,
-    defaults: true,
-    oneofs: true
-  }),
-  user: protoLoader.loadSync(userProtoPath, {
-    keepCase: true,
-    longs: String,
-    enums: String,
-    defaults: true,
-    oneofs: true
-  }),
-  appointment: protoLoader.loadSync(appointmentProtoPath, {
-    keepCase: true,
-    longs: String,
-    enums: String,
-    defaults: true,
-    oneofs: true
-  }),
-  chat: protoLoader.loadSync(chatProtoPath, {
-    keepCase: true,
-    longs: String,
-    enums: String,
-    defaults: true,
-    oneofs: true
-  })
+  property: protoLoader.loadSync(propertyProtoPath, options),
+  user: protoLoader.loadSync(userProtoPath, options),
+  appointment: protoLoader.loadSync(appointmentProtoPath, options),
+  chat: protoLoader.loadSync(chatProtoPath, options),
+  notification: protoLoader.loadSync(notificationProtoPath, options)
 };
 
 // Charger les définitions
@@ -47,12 +33,9 @@ const protoDescriptors = {
   property: grpc.loadPackageDefinition(packageDefinition.property).property,
   user: grpc.loadPackageDefinition(packageDefinition.user).user,
   appointment: grpc.loadPackageDefinition(packageDefinition.appointment).appointment,
-  chat: grpc.loadPackageDefinition(packageDefinition.chat).chat
+  chat: grpc.loadPackageDefinition(packageDefinition.chat).chat,
+  notification: grpc.loadPackageDefinition(packageDefinition.notification).notification
 };
-
-// Vérifier les services et méthodes
-console.log('Chat service descriptor:', Object.keys(protoDescriptors.chat));
-console.log('Chat service methods:', Object.keys(protoDescriptors.chat.ChatService.service));
 
 // Créer les clients
 const propertyClient = new protoDescriptors.property.PropertyService(
@@ -75,85 +58,94 @@ const chatClient = new protoDescriptors.chat.ChatService(
   grpc.credentials.createInsecure()
 );
 
-// Vérifier les méthodes disponibles dans les clients
-console.log('Chat client methods:', Object.getOwnPropertyNames(chatClient.__proto__));
+const notificationClient = new protoDescriptors.notification.NotificationService(
+  'localhost:50055', 
+  grpc.credentials.createInsecure()
+);
 
 // Créer des versions promisifiées des méthodes
 const propertyService = {};
 const userService = {};
 const appointmentService = {};
 const chatService = {};
+const notificationService = {};
 
-// Promisifier les méthodes du service Property
+// Promisifier les méthodes pour chaque service
 Object.keys(propertyClient.__proto__).forEach(method => {
   if (typeof propertyClient[method] === 'function' && method !== 'constructor') {
     propertyService[`${method}Async`] = promisify(propertyClient[method].bind(propertyClient));
   }
 });
 
-// Promisifier les méthodes du service User
 Object.keys(userClient.__proto__).forEach(method => {
   if (typeof userClient[method] === 'function' && method !== 'constructor') {
     userService[`${method}Async`] = promisify(userClient[method].bind(userClient));
   }
 });
 
-// Promisifier les méthodes du service Appointment
 Object.keys(appointmentClient.__proto__).forEach(method => {
   if (typeof appointmentClient[method] === 'function' && method !== 'constructor') {
     appointmentService[`${method}Async`] = promisify(appointmentClient[method].bind(appointmentClient));
   }
 });
 
-// Promisifier les méthodes du service Chat
 Object.keys(chatClient.__proto__).forEach(method => {
   if (typeof chatClient[method] === 'function' && method !== 'constructor') {
     chatService[`${method}Async`] = promisify(chatClient[method].bind(chatClient));
   }
 });
 
-// Ajouter manuellement la méthode AskAI avec la bonne casse
+Object.keys(notificationClient.__proto__).forEach(method => {
+  if (typeof notificationClient[method] === 'function' && method !== 'constructor') {
+    notificationService[`${method}Async`] = promisify(notificationClient[method].bind(notificationClient));
+  }
+});
+
+// S'assurer que AskAI est disponible avec la bonne casse
 if (!chatService.AskAIAsync && chatClient.AskAI) {
-  console.log('Ajout manuel de AskAIAsync');
   chatService.AskAIAsync = promisify(chatClient.AskAI.bind(chatClient));
 }
 
-console.log('User service methods:', Object.keys(userService));
-console.log('Property service methods:', Object.keys(propertyService));
-console.log('Appointment service methods:', Object.keys(appointmentService));
-console.log('Chat service methods:', Object.keys(chatService));
+// S'assurer que les méthodes du service de notification sont disponibles
+const notificationMethods = [
+  'SendNotification', 
+  'SendBulkNotification', 
+  'GetUserNotifications', 
+  'MarkNotificationAsRead',
+  'UpdateNotificationSettings'
+];
 
-// Si la méthode AskAI n'est toujours pas disponible, créer une version spéciale
-if (!chatService.AskAIAsync) {
-  console.log('La méthode AskAIAsync n\'est pas disponible, création d\'une version de secours');
-  chatService.AskAIAsync = async (params) => {
-    return new Promise((resolve, reject) => {
-      try {
-        chatClient.AskAI(params, (err, response) => {
-          if (err) {
-            console.error('Erreur AskAI:', err);
-            reject(err);
-          } else {
-            resolve(response);
-          }
-        });
-      } catch (error) {
-        console.error('Exception dans AskAI:', error);
-        reject(error);
-      }
-    });
-  };
-}
+notificationMethods.forEach(method => {
+  if (!notificationService[`${method}Async`] && notificationClient[method]) {
+    notificationService[`${method}Async`] = promisify(notificationClient[method].bind(notificationClient));
+  }
+});
 
-// Exporter à la fois les services promisifiés et les clients bruts
+// S'assurer que les méthodes de statut utilisateur sont disponibles avec la bonne casse
+const chatStatusMethods = [
+  'UpdateUserStatus', 
+  'GetUserStatus', 
+  'GetOnlineUsers', 
+  'UpdateTypingStatus', 
+  'GetTypingUsers'
+];
+
+chatStatusMethods.forEach(method => {
+  if (!chatService[`${method}Async`] && chatClient[method]) {
+    chatService[`${method}Async`] = promisify(chatClient[method].bind(chatClient));
+  }
+});
+
 module.exports = {
   propertyService,
   userService,
   appointmentService,
   chatService,
+  notificationService,
   // Clients bruts
   propertyClient,
   userClient,
   appointmentClient,
-  chatClient
+  chatClient,
+  notificationClient
 };
