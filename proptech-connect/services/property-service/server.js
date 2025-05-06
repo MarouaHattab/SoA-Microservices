@@ -3,6 +3,7 @@ const protoLoader = require('@grpc/proto-loader');
 const mongoose = require('mongoose');
 const { Kafka } = require('kafkajs');
 const Property = require('./models/Property');
+const PropertyReview = require('./models/PropertyReview');
 require('dotenv').config();
 const { connectProducer, sendEvent } = require('./kafka-producer');
 let kafkaProducer;
@@ -186,6 +187,239 @@ server.addService(propertyProto.PropertyService.service, {
       });
     } catch (error) {
       console.error('Error in DeleteProperty:', error);
+      callback({
+        code: grpc.status.INTERNAL,
+        message: error.message
+      });
+    }
+  },
+
+  // Ajouter une note et un commentaire
+  AddReview: async (call, callback) => {
+    try {
+      const { property_id, user_id, user_name, rating, comment } = call.request;
+
+      // Vérifier si l'utilisateur a déjà laissé un avis
+      const existingReview = await PropertyReview.findOne({ property_id, user_id });
+      if (existingReview) {
+        return callback({
+          code: grpc.status.ALREADY_EXISTS,
+          message: 'User has already reviewed this property'
+        });
+      }
+
+      // Créer le nouvel avis
+      const review = new PropertyReview({
+        property_id,
+        user_id,
+        user_name,
+        rating,
+        comment
+      });
+
+      await review.save();
+
+      // Mettre à jour la note moyenne de la propriété
+      const property = await Property.findById(property_id);
+      const allReviews = await PropertyReview.find({ property_id });
+      
+      const totalRating = allReviews.reduce((sum, review) => sum + review.rating, 0);
+      property.average_rating = totalRating / allReviews.length;
+      property.total_ratings = allReviews.length;
+      
+      await property.save();
+
+      callback(null, { review });
+    } catch (error) {
+      callback({
+        code: grpc.status.INTERNAL,
+        message: error.message
+      });
+    }
+  },
+
+  // Obtenir les avis d'une propriété
+  GetPropertyReviews: async (call, callback) => {
+    try {
+      const property_id = call.request.id;
+      const reviews = await PropertyReview.find({ property_id })
+        .sort({ created_at: -1 });
+
+      const property = await Property.findById(property_id);
+      
+      callback(null, {
+        reviews,
+        average_rating: property.average_rating,
+        total_reviews: property.total_ratings
+      });
+    } catch (error) {
+      callback({
+        code: grpc.status.INTERNAL,
+        message: error.message
+      });
+    }
+  },
+
+  // Mettre à jour un avis
+  UpdateReview: async (call, callback) => {
+    try {
+      const { review_id, user_id, rating, comment } = call.request;
+
+      const review = await PropertyReview.findOne({ _id: review_id, user_id });
+      if (!review) {
+        return callback({
+          code: grpc.status.NOT_FOUND,
+          message: 'Review not found or unauthorized'
+        });
+      }
+
+      review.rating = rating;
+      review.comment = comment;
+      await review.save();
+
+      // Mettre à jour la note moyenne de la propriété
+      const property = await Property.findById(review.property_id);
+      const allReviews = await PropertyReview.find({ property_id: review.property_id });
+      
+      const totalRating = allReviews.reduce((sum, review) => sum + review.rating, 0);
+      property.average_rating = totalRating / allReviews.length;
+      
+      await property.save();
+
+      callback(null, { review });
+    } catch (error) {
+      callback({
+        code: grpc.status.INTERNAL,
+        message: error.message
+      });
+    }
+  },
+
+  // Supprimer un avis
+  DeleteReview: async (call, callback) => {
+    try {
+      const { review_id, user_id } = call.request;
+
+      const review = await PropertyReview.findOne({ _id: review_id, user_id });
+      if (!review) {
+        return callback({
+          code: grpc.status.NOT_FOUND,
+          message: 'Review not found or unauthorized'
+        });
+      }
+
+      await review.deleteOne();
+
+      // Mettre à jour la note moyenne de la propriété
+      const property = await Property.findById(review.property_id);
+      const allReviews = await PropertyReview.find({ property_id: review.property_id });
+      
+      if (allReviews.length > 0) {
+        const totalRating = allReviews.reduce((sum, review) => sum + review.rating, 0);
+        property.average_rating = totalRating / allReviews.length;
+        property.total_ratings = allReviews.length;
+      } else {
+        property.average_rating = 0;
+        property.total_ratings = 0;
+      }
+      
+      await property.save();
+
+      callback(null, {
+        success: true,
+        message: 'Review deleted successfully'
+      });
+    } catch (error) {
+      callback({
+        code: grpc.status.INTERNAL,
+        message: error.message
+      });
+    }
+  },
+
+  // Ajouter aux favoris
+  AddToFavorites: async (call, callback) => {
+    try {
+      const { property_id, user_id } = call.request;
+
+      const property = await Property.findById(property_id);
+      if (!property) {
+        return callback({
+          code: grpc.status.NOT_FOUND,
+          message: 'Property not found'
+        });
+      }
+
+      if (property.favorited_by.includes(user_id)) {
+        return callback({
+          code: grpc.status.ALREADY_EXISTS,
+          message: 'Property already in favorites'
+        });
+      }
+
+      property.favorited_by.push(user_id);
+      await property.save();
+
+      callback(null, {
+        success: true,
+        message: 'Property added to favorites'
+      });
+    } catch (error) {
+      callback({
+        code: grpc.status.INTERNAL,
+        message: error.message
+      });
+    }
+  },
+
+  // Retirer des favoris
+  RemoveFromFavorites: async (call, callback) => {
+    try {
+      const { property_id, user_id } = call.request;
+
+      const property = await Property.findById(property_id);
+      if (!property) {
+        return callback({
+          code: grpc.status.NOT_FOUND,
+          message: 'Property not found'
+        });
+      }
+
+      property.favorited_by = property.favorited_by.filter(id => id !== user_id);
+      await property.save();
+
+      callback(null, {
+        success: true,
+        message: 'Property removed from favorites'
+      });
+    } catch (error) {
+      callback({
+        code: grpc.status.INTERNAL,
+        message: error.message
+      });
+    }
+  },
+
+  // Obtenir les favoris d'un utilisateur
+  GetUserFavorites: async (call, callback) => {
+    try {
+      const { user_id, page = 1, limit = 10 } = call.request;
+      const skip = (page - 1) * limit;
+
+      const [properties, totalCount] = await Promise.all([
+        Property.find({ favorited_by: user_id })
+          .skip(skip)
+          .limit(limit),
+        Property.countDocuments({ favorited_by: user_id })
+      ]);
+
+      callback(null, {
+        properties,
+        total_count: totalCount,
+        page,
+        limit
+      });
+    } catch (error) {
       callback({
         code: grpc.status.INTERNAL,
         message: error.message

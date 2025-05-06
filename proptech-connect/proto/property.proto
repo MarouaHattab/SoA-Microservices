@@ -8,6 +8,17 @@ service PropertyService {
   rpc CreateProperty (CreatePropertyRequest) returns (PropertyResponse);
   rpc UpdateProperty (UpdatePropertyRequest) returns (PropertyResponse);
   rpc DeleteProperty (PropertyRequest) returns (DeleteResponse);
+  
+  // Nouvelles méthodes pour les notes et commentaires
+  rpc AddReview (AddReviewRequest) returns (ReviewResponse);
+  rpc GetPropertyReviews (PropertyRequest) returns (PropertyReviewsResponse);
+  rpc UpdateReview (UpdateReviewRequest) returns (ReviewResponse);
+  rpc DeleteReview (DeleteReviewRequest) returns (DeleteResponse);
+  
+  // Méthodes pour les favoris
+  rpc AddToFavorites (FavoriteRequest) returns (FavoriteResponse);
+  rpc RemoveFromFavorites (FavoriteRequest) returns (FavoriteResponse);
+  rpc GetUserFavorites (UserFavoritesRequest) returns (PropertySearchResponse);
 }
 
 message PropertyRequest {
@@ -73,6 +84,9 @@ message Property {
   repeated string images = 13;
   string created_at = 14;
   string updated_at = 15;
+  float average_rating = 16;
+  int32 total_ratings = 17;
+  repeated string favorited_by = 18;
 }
 
 message PropertyResponse {
@@ -87,6 +101,65 @@ message PropertySearchResponse {
 }
 
 message DeleteResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Nouveaux messages pour les reviews
+message AddReviewRequest {
+  string property_id = 1;
+  string user_id = 2;
+  string user_name = 3;
+  int32 rating = 4;
+  string comment = 5;
+}
+
+message UpdateReviewRequest {
+  string review_id = 1;
+  string user_id = 2;
+  int32 rating = 3;
+  string comment = 4;
+}
+
+message DeleteReviewRequest {
+  string review_id = 1;
+  string user_id = 2;
+}
+
+message Review {
+  string id = 1;
+  string property_id = 2;
+  string user_id = 3;
+  string user_name = 4;
+  int32 rating = 5;
+  string comment = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+message ReviewResponse {
+  Review review = 1;
+}
+
+message PropertyReviewsResponse {
+  repeated Review reviews = 1;
+  float average_rating = 2;
+  int32 total_reviews = 3;
+}
+
+// Nouveaux messages pour les favoris
+message FavoriteRequest {
+  string property_id = 1;
+  string user_id = 2;
+}
+
+message UserFavoritesRequest {
+  string user_id = 1;
+  int32 page = 2;
+  int32 limit = 3;
+}
+
+message FavoriteResponse {
   bool success = 1;
   string message = 2;
 }
