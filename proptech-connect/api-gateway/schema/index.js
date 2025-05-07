@@ -10,7 +10,7 @@ const typeDefs = gql`
     createdAt: String!
     updatedAt: String!
   }
-  // Nouveaux types pour les rendez-vous
+  # Nouveaux types pour les rendez-vous
   type AppointmentHistory {
     status: String!
     dateTime: String
@@ -18,7 +18,7 @@ const typeDefs = gql`
     changedAt: String!
     notes: String
   }
-  
+
   input AppointmentFilterInput {
     status: String
     fromDate: String
@@ -26,7 +26,7 @@ const typeDefs = gql`
     page: Int
     limit: Int
   }
-  
+
   type Appointment {
     id: ID!
     propertyId: ID!
@@ -48,19 +48,19 @@ const typeDefs = gql`
     createdAt: String!
     updatedAt: String!
   }
-  
+
   type StatusStat {
     status: String!
     count: Int!
     percentage: Int!
   }
-  
+
   type DayStat {
     day: String!
     count: Int!
     percentage: Int!
   }
-  
+
   type AppointmentStats {
     totalAppointments: Int!
     period: String!
@@ -69,25 +69,25 @@ const typeDefs = gql`
     startDate: String!
     endDate: String!
   }
-  
+
   input RespondInput {
     response: String!  # "confirm", "reject", "reschedule"
     reason: String
     proposedDate: String
   }
-  
+
   input FeedbackInput {
     rating: Int!
     feedback: String
   }
-  
+
   extend type Query {
-    // Nouvelles requêtes
+    # Nouvelles requêtes
     appointmentStats(period: String!): AppointmentStats!
   }
-  
+
   extend type Mutation {
-    // Nouvelles mutations
+    # Nouvelles mutations
     respondToAppointment(id: ID!, input: RespondInput!): Appointment!
     acceptReschedule(id: ID!): Appointment!
     declineReschedule(id: ID!, reason: String): Appointment!
@@ -95,7 +95,7 @@ const typeDefs = gql`
     addAppointmentFeedback(id: ID!, input: FeedbackInput!): Appointment!
     sendAppointmentReminder(id: ID!): DeleteResponse!
   }
-  
+
   type Property {
     id: ID!
     title: String!
@@ -111,21 +111,6 @@ const typeDefs = gql`
     owner: User
     features: [String]
     images: [String]
-    createdAt: String!
-    updatedAt: String!
-  }
-
-  type Appointment {
-    id: ID!
-    propertyId: ID!
-    property: Property
-    userId: ID!
-    user: User
-    agentId: ID!
-    agent: User
-    dateTime: String!
-    status: String!
-    notes: String
     createdAt: String!
     updatedAt: String!
   }
@@ -186,7 +171,7 @@ const typeDefs = gql`
     area: Float
     matchScore: Float
   }
-  
+
   type SearchCriteria {
     location: String
     minPrice: Float
@@ -196,7 +181,7 @@ const typeDefs = gql`
     minArea: Float
     propertyType: String
   }
-  
+
   type AISearchResult {
     response: String!
     suggestedProperties: [AIPropertySuggestion]!
@@ -266,28 +251,28 @@ const typeDefs = gql`
     me: User
     user(id: ID!): User
     users: [User!]!
-    
+
     # Property queries
     property(id: ID!): Property
     properties: [Property!]!
     searchProperties(input: PropertySearchInput): PropertySearchResult!
-    
+
     # Appointment queries
     appointment(id: ID!): Appointment
     userAppointments(userId: ID!): [Appointment!]!
     propertyAppointments(propertyId: ID!): [Appointment!]!
-    
+
     # Chat queries
     conversations: [Conversation!]!
     conversation(id: ID!): Conversation
     messages(conversationId: ID!): [Message!]!
-    
+
     # Notification queries
     notifications: [Notification!]!
-    
+
     # AI queries
     askAI(query: String!, conversationId: ID): AIResponse!
-    
+
     # Nouveaux endpoints AI améliorés
     askRealEstateAI(query: String!, conversationId: ID): AISearchResult!
     getPropertyRecommendations(userId: ID!): [PropertyRecommendation!]!
@@ -300,21 +285,21 @@ const typeDefs = gql`
     login(email: String!, password: String!): AuthPayload!
     updateUser(id: ID!, name: String, email: String, password: String, role: String, phone: String): User!
     deleteUser(id: ID!): DeleteResponse!
-    
+
     # Property mutations
     createProperty(input: PropertyInput!): Property!
     updateProperty(id: ID!, input: PropertyInput!): Property!
     deleteProperty(id: ID!): DeleteResponse!
-    
+
     # Appointment mutations
     createAppointment(input: AppointmentInput!): Appointment!
     updateAppointment(id: ID!, input: AppointmentInput!): Appointment!
     deleteAppointment(id: ID!): DeleteResponse!
-    
+
     # Chat mutations
     sendMessage(input: MessageInput!): Message!
     markMessageAsRead(id: ID!): Message!
-    
+
     # Notification mutations
     markNotificationAsRead(id: ID!): Notification!
     markAllNotificationsAsRead: [Notification!]!

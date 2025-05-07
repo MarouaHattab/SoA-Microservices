@@ -39,28 +39,28 @@ const protoDescriptors = {
 
 // Créer les clients
 const propertyClient = new protoDescriptors.property.PropertyService(
-  'localhost:50051', 
-  grpc.credentials.createInsecure()
+    'localhost:50051',
+    grpc.credentials.createInsecure()
 );
 
 const userClient = new protoDescriptors.user.UserService(
-  'localhost:50052', 
-  grpc.credentials.createInsecure()
+    'localhost:50052',
+    grpc.credentials.createInsecure()
 );
 
 const appointmentClient = new protoDescriptors.appointment.AppointmentService(
-  'localhost:50053', 
-  grpc.credentials.createInsecure()
+    'localhost:50053',
+    grpc.credentials.createInsecure()
 );
 
 const chatClient = new protoDescriptors.chat.ChatService(
-  'localhost:50054', 
-  grpc.credentials.createInsecure()
+    'localhost:50054',
+    grpc.credentials.createInsecure()
 );
 
 const notificationClient = new protoDescriptors.notification.NotificationService(
-  'localhost:50055', 
-  grpc.credentials.createInsecure()
+    'localhost:50055',
+    grpc.credentials.createInsecure()
 );
 
 // Créer des versions promisifiées des méthodes
@@ -108,9 +108,9 @@ if (!chatService.AskAIAsync && chatClient.AskAI) {
 
 // S'assurer que les méthodes du service de notification sont disponibles
 const notificationMethods = [
-  'SendNotification', 
-  'SendBulkNotification', 
-  'GetUserNotifications', 
+  'SendNotification',
+  'SendBulkNotification',
+  'GetUserNotifications',
   'MarkNotificationAsRead',
   'UpdateNotificationSettings'
 ];
@@ -123,10 +123,10 @@ notificationMethods.forEach(method => {
 
 // S'assurer que les méthodes de statut utilisateur sont disponibles avec la bonne casse
 const chatStatusMethods = [
-  'UpdateUserStatus', 
-  'GetUserStatus', 
-  'GetOnlineUsers', 
-  'UpdateTypingStatus', 
+  'UpdateUserStatus',
+  'GetUserStatus',
+  'GetOnlineUsers',
+  'UpdateTypingStatus',
   'GetTypingUsers'
 ];
 
@@ -135,6 +135,7 @@ chatStatusMethods.forEach(method => {
     chatService[`${method}Async`] = promisify(chatClient[method].bind(chatClient));
   }
 });
+
 const appointmentMethods = [
   'RespondToAppointment',
   'AcceptReschedule',
@@ -150,6 +151,7 @@ appointmentMethods.forEach(method => {
     appointmentService[`${method}Async`] = promisify(appointmentClient[method].bind(appointmentClient));
   }
 });
+
 module.exports = {
   propertyService,
   userService,

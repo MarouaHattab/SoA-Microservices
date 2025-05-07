@@ -24,8 +24,21 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+
+// Apply body parser only for non-GraphQL routes
+app.use((req, res, next) => {
+  if (req.path === '/graphql') {
+    return next();
+  }
+  bodyParser.json({ limit: '50mb' })(req, res, next);
+});
+
+app.use((req, res, next) => {
+  if (req.path === '/graphql') {
+    return next();
+  }
+  bodyParser.urlencoded({ extended: true, limit: '50mb' })(req, res, next);
+});
 
 // Routes API REST
 app.use('/api/auth', authRoutes);
@@ -48,8 +61,12 @@ async function startApolloServer() {
   });
 
   await apolloServer.start();
-  apolloServer.applyMiddleware({ app, path: '/graphql' });
-  
+  apolloServer.applyMiddleware({
+    app,
+    path: '/graphql',
+    bodyParserConfig: false // Let Apollo handle its own body parsing
+  });
+
   // Démarrer le serveur
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {

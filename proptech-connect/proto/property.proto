@@ -17,7 +17,6 @@ service PropertyService {
   
   // Méthodes pour les favoris
   rpc AddToFavorites (FavoriteRequest) returns (FavoriteResponse);
-  rpc RemoveFromFavorites (FavoriteRequest) returns (FavoriteResponse);
   rpc GetUserFavorites (UserFavoritesRequest) returns (PropertySearchResponse);
    // Nouvelles méthodes pour les favoris
   rpc CreateFavoriteCategory (FavoriteCategoryRequest) returns (FavoriteCategoryResponse);
@@ -171,10 +170,6 @@ message UserFavoritesRequest {
   int32 limit = 3;
 }
 
-message FavoriteResponse {
-  bool success = 1;
-  string message = 2;
-}
 // Favoris avec catégories
 message FavoriteCategory {
   string id = 1;
