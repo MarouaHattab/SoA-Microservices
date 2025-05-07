@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PropTech Connect Architecture</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e2430;
+            color: #e1e5ea;
+            padding: 20px;
+        }
+        .architecture-diagram {
+            width: 100%;
+            overflow-x: auto;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .layer {
+            display: flex;
+            margin-bottom: 20px;
+            width: 100%;
+            justify-content: center;
+        }
+        .component {
+            border: 2px dashed #4d5b7c;
+            border-radius: 5px;
+            padding: 12px;
+            margin: 0 10px;
+            min-width: 180px;
+            text-align: center;
+            background-color: #2a3242;
+            position: relative;
+        }
+        .client {
+            border-color: #5a9de3;
+            background-color: #2c3e50;
+        }
+        .gateway {
+            border-color: #3da67a;
+            background-color: #234136;
+        }
+        .service {
+            border-color: #b77ad2;
+            background-color: #2d2640;
+        }
+        .database {
+            border-color: #e09356;
+            background-color: #3a2d21;
+            font-size: 0.9em;
+        }
+        .messaging {
+            border-color: #e35a81;
+            background-color: #3d2129;
+        }
+        .title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        .subtitle {
+            font-size: 0.8em;
+            margin-bottom: 8px;
+            color: #9aa5b8;
+        }
+        .details {
+            font-size: 0.85em;
+            text-align: left;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #4d5b7c;
+        }
+        .connection {
+            position: relative;
+            height: 50px;
+            width: 4px;
+            margin: 0 auto;
+            background-color: #4d5b7c;
+        }
+        .protocol {
+            position: absolute;
+            background-color: #3e4b64;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.75em;
+            white-space: nowrap;
+            color: #c1d4f0;
+        }
+        .horizontal-line {
+            height: 4px;
+            background-color: #4d5b7c;
+            position: relative;
+            margin: 20px 0;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #2a3242;
+            border-radius: 5px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 0 15px 10px 0;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border-radius: 3px;
+        }
+        .database-internal {
+            margin-top: 10px;
+            padding: 5px;
+            background-color: #272133;
+            border-radius: 4px;
+            font-size: 0.8em;
+            text-align: left;
+        }
+        .data-flow {
+            font-size: 0.8em;
+            color: #9aa5b8;
+            margin-top: 5px;
+            text-align: center;
+        }
+        .arrow {
+            font-size: 1.2em;
+        }
+        .connection-container {
+            position: relative;
+            height: 60px;
+            width: 100%;
+        }
+        .horizontal-connection {
+            position: absolute;
+            height: 4px;
+            background-color: #4d5b7c;
+            top: 50%;
+            left: 0;
+            right: 0;
+            transform: translateY(-50%);
+        }
+        .vertical-connection {
+            position: absolute;
+            width: 4px;
+            background-color: #4d5b7c;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .description {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #2a3242;
+            border-radius: 5px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PropTech Connect Architecture</h1>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #5a9de3;"></div>
+                <span>Client Applications</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #3da67a;"></div>
+                <span>API Gateway</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #b77ad2;"></div>
+                <span>Microservices</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #e09356;"></div>
+                <span>Databases</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #e35a81;"></div>
+                <span>Message Broker</span>
+            </div>
+        </div>
+        
+        <div class="architecture-diagram">
+            <!-- Client Layer -->
+            <div class="layer">
+                <div class="component client">
+                    <div class="title">Client Applications</div>
+                    <div class="subtitle">Web/Mobile App</div>
+                    <div class="details">
+                        • React/Vue.js Frontend<br>
+                        • Mobile Applications<br>
+                        • Third-party Integrations
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Connection with protocols -->
+            <div class="connection-container">
+                <div class="vertical-connection" style="height: 60px; top: 0;"></div>
+                <div class="protocol" style="left: 30%; top: 20px;">REST API</div>
+                <div class="protocol" style="right: 30%; top: 20px;">GraphQL</div>
+            </div>
+            
+            <!-- API Gateway Layer -->
+            <div class="layer">
+                <div class="component gateway">
+                    <div class="title">API Gateway</div>
+                    <div class="subtitle">Express.js Server</div>
+                    <div class="details">
+                        • Authentication & Authorization<br>
+                        • Request Routing<br>
+                        • GraphQL Schema & Resolvers<br>
+                        • Data Aggregation<br>
+                        • Rate Limiting & Caching
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Connection with protocols -->
+            <div class="connection-container">
+                <div class="vertical-connection" style="height: 60px; top: 0;"></div>
+                <div class="protocol" style="left: 50%; top: 20px; transform: translateX(-50%);">gRPC/Proto</div>
+            </div>
+            
+            <!-- Microservices Layer -->
+            <div class="layer">
+                <div class="component service">
+                    <div class="title">User Service</div>
+                    <div class="subtitle">Port: 50052</div>
+                    <div class="details">
+                        • User Registration<br>
+                        • Authentication<br>
+                        • Profile Management<br>
+                        • Role-based Access
+                    </div>
+                    <div class="database-internal">
+                        <strong>MongoDB Collection:</strong> users
+                    </div>
+                </div>
+                
+                <div class="component service">
+                    <div class="title">Property Service</div>
+                    <div class="subtitle">Port: 50051</div>
+                    <div class="details">
+                        • Property CRUD<br>
+                        • Property Search<br>
+                        • Reviews & Ratings<br>
+                        • Favorites Management
+                    </div>
+                    <div class="database-internal">
+                        <strong>MongoDB Collections:</strong> properties, reviews, favorites
+                    </div>
+                </div>
+                
+                <div class="component service">
+                    <div class="title">Chat Service</div>
+                    <div class="subtitle">Port: 50054</div>
+                    <div class="details">
+                        • Messaging<br>
+                        • Conversations<br>
+                        • Group Chats<br>
+                        • AI Assistant Integration<br>
+                        • User Status Management
+                    </div>
+                    <div class="database-internal">
+                        <strong>MongoDB Collections:</strong> messages, conversations, groups
+                    </div>
+                </div>
+                
+                <div class="component service">
+                    <div class="title">Notification Service</div>
+                    <div class="subtitle">Port: 50055</div>
+                    <div class="details">
+                        • Real-time Notifications<br>
+                        • Email Notifications<br>
+                        • Push Notifications<br>
+                        • Notification Preferences
+                    </div>
+                    <div class="database-internal">
+                        <strong>MongoDB Collections:</strong> notifications, settings
+                    </div>
+                </div>
+                
+                <div class="component service">
+                    <div class="title">Appointment Service</div>
+                    <div class="subtitle">Port: 50053</div>
+                    <div class="details">
+                        • Schedule Appointments<br>
+                        • Respond to Requests<br>
+                        • Reschedule/Cancel<br>
+                        • Feedback & Ratings<br>
+                        • Reminders
+                    </div>
+                    <div class="database-internal">
+                        <strong>MongoDB Collection:</strong> appointments
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Database Layer (integrated into services) -->
+            
+            <!-- Connection to Kafka -->
+            <div class="connection-container">
+                <div class="horizontal-connection"></div>
+                <div class="vertical-connection" style="height: 60px; top: 0;"></div>
+            </div>
+            
+            <!-- Kafka Layer -->
+            <div class="layer">
+                <div class="component messaging" style="width: 80%;">
+                    <div class="title">Kafka Message Broker</div>
+                    <div class="subtitle">Event-Driven Communication</div>
+                    <div class="details" style="display: flex; justify-content: space-between;">
+                        <div style="flex: 1;">
+                            <strong>Topics:</strong><br>
+                            • user-events<br>
+                            • property-events<br>
+                            • appointment-events<br>
+                            • chat-events<br>
+                            • notification-events
+                        </div>
+                        <div style="flex: 1;">
+                            <strong>Event Types:</strong><br>
+                            • Creation Events<br>
+                            • Update Events<br>
+                            • Status Change Events<br>
+                            • Notification Triggers
+                        </div>
+                        <div style="flex: 1;">
+                            <strong>Used For:</strong><br>
+                            • Service-to-Service Communication<br>
+                            • Event Logging<br>
+                            • Asynchronous Processing<br>
+                            • System-wide Notifications
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="description">
+            <h3>Communication Protocols:</h3>
+            <p><strong>REST API:</strong> Used between client applications and API Gateway for standard HTTP-based communication. Handles most CRUD operations and client-server interactions.</p>
+            
+            <p><strong>GraphQL:</strong> Alternative to REST at the client-API Gateway layer, providing flexible data querying capabilities. Used for complex data queries where clients need to fetch related data in a single request.</p>
+            
+            <p><strong>gRPC/Proto:</strong> Used for high-performance communication between the API Gateway and microservices. All internal service-to-service communication uses gRPC for efficiency and type safety.</p>
+            
+            <p><strong>Kafka:</strong> Used for asynchronous event-driven communication between services. Handles events like property updates, appointment status changes, notifications, etc. Enables decoupled architecture and reliable event delivery.</p>
+            
+            <h3>Data Flow Examples:</h3>
+            <ul>
+                <li><strong>Property Creation:</strong> Client → REST API → API Gateway → gRPC → Property Service → Kafka → Notification Service → Push Notification to User</li>
+                <li><strong>Appointment Scheduling:</strong> Client → GraphQL → API Gateway → gRPC → Appointment Service → Kafka → Notification Service + Chat Service</li>
+                <li><strong>User Authentication:</strong> Client → REST API → API Gateway → gRPC → User Service → JWT Token → Client</li>
+                <li><strong>Real-time Messaging:</strong> Client → WebSocket → API Gateway → gRPC → Chat Service → MongoDB → Kafka → Notification Service</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
