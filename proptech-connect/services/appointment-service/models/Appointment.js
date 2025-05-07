@@ -1,3 +1,4 @@
+// Mise à jour du modèle Appointment.js
 const mongoose = require('mongoose');
 
 const appointmentSchema = new mongoose.Schema({
@@ -8,10 +9,26 @@ const appointmentSchema = new mongoose.Schema({
   status: { 
     type: String, 
     required: true, 
-    enum: ['pending', 'confirmed', 'cancelled', 'completed'],
+    enum: ['pending', 'confirmed', 'rejected', 'cancelled', 'completed', 'rescheduled'],
     default: 'pending'
   },
   notes: { type: String },
+  owner_response: { type: String },
+  reschedule_proposed: { type: Date },
+  reschedule_reason: { type: String },
+  reminder_sent: { type: Boolean, default: false },
+  reminder_scheduled_at: { type: Date },
+  rejection_reason: { type: String },
+  feedback: { type: String },
+  feedback_rating: { type: Number, min: 1, max: 5 },
+  // Historique des modifications
+  history: [{
+    status: { type: String },
+    date_time: { type: Date },
+    changed_by: { type: String },
+    changed_at: { type: Date, default: Date.now },
+    notes: { type: String }
+  }]
 }, {
   timestamps: true
 });

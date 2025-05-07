@@ -973,6 +973,65 @@ const chatService = {
   }
   
 };
+// Mise à jour dans chat-service/server.js
+
+// Traiter les événements de rendez-vous
+if (topic === 'appointment-events') {
+  const eventData = JSON.parse(message.value.toString());
+  
+  // Notifier les participants via le chat si nécessaire
+  if (['APPOINTMENT_CREATED', 'APPOINTMENT_UPDATED', 'APPOINTMENT_DELETED'].includes(eventData.event)) {
+    try {
+      // Vérifier si une conversation existe entre les participants
+      const appointment = eventData.appointment;
+      
+      if (appointment && appointment.user_id && appointment.agent_id) {
+        const existingConversation = await Conversation.findOne({
+          is_group: false,
+          participants: { $all: [appointment.user_id, appointment.agent_id] }
+        });
+        
+        if (existingConversation) {
+          // Créer un message système pour informer de l'événement de rendez-vous
+          let content = '';
+          
+          switch (eventData.event) {
+            case 'APPOINTMENT_CREATED':
+              content = `Nouveau rendez-vous programmé pour le ${new Date(appointment.date_time).toLocaleString()}`;
+              break;
+            case 'APPOINTMENT_UPDATED':
+              content = `Le rendez-vous du ${new Date(appointment.date_time).toLocaleString()} a été mis à jour. Statut: ${appointment.status}`;
+              break;
+            case 'APPOINTMENT_DELETED':
+              content = `Le rendez-vous a été annulé`;
+              break;
+          }
+          
+          const systemMessage = new Message({
+            sender_id: 'SYSTEM',
+            sender_role: 'system',
+            sender_name: 'Système',
+            receiver_id: null,
+            content,
+            conversation_id: existingConversation._id,
+            is_read: false,
+            is_ai: false,
+            created_at: new Date().toISOString()
+          });
+          
+          await systemMessage.save();
+          
+          // Mettre à jour la date de mise à jour de la conversation
+          await Conversation.findByIdAndUpdate(existingConversation._id, {
+            updated_at: new Date().toISOString()
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error processing appointment event in chat service:', error);
+    }
+  }
+}
 
 // Connexion à MongoDB et Kafka
 const PORT = process.env.PORT || 50054;

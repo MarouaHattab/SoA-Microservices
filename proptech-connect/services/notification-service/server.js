@@ -1,3 +1,5 @@
+// Mise à jour dans notification-service/server.js
+
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 const path = require('path');
@@ -373,6 +375,8 @@ async function startServices() {
     await consumer.subscribe({ topic: 'user-events', fromBeginning: false });
     await consumer.subscribe({ topic: 'property-events', fromBeginning: false });
     await consumer.subscribe({ topic: 'chat-events', fromBeginning: false });
+    await consumer.subscribe({ topic: 'appointment-events', fromBeginning: false });
+    await consumer.subscribe({ topic: 'notification-events', fromBeginning: false });
     
     // Traiter les messages Kafka
     await consumer.run({
@@ -396,9 +400,141 @@ async function startServices() {
               },
               { upsert: true }
             );
+          } else if (topic === 'property-events' && eventData.event === 'price-change') {
+            // Notifier tous les utilisateurs qui ont cette propriété en favoris
+            for (const userId of eventData.favorited_by) {
+              try {
+                // Vérifier les paramètres de notification
+                const notificationSettings = await NotificationSettings.findOne({ user_id: userId }) || 
+                                          new NotificationSettings({ user_id: userId });
+                
+                if (!notificationSettings.muted_types.includes('price_change')) {
+                  // Créer la notification
+                  const priceChange = eventData.new_price - eventData.old_price;
+                  const isIncrease = priceChange > 0;
+                  
+                  const notification = new Notification({
+                    sender_id: 'SYSTEM',
+                    sender_name: 'Système',
+                    sender_role: 'system',
+                    recipient_id: userId,
+                    title: 'Changement de prix sur une propriété favorite',
+                    content: `Le prix de "${eventData.title}" a ${isIncrease ? 'augmenté' : 'baissé'} de ${Math.abs(priceChange).toLocaleString()} € (${isIncrease ? '+' : '-'}${Math.abs(Math.round((priceChange / eventData.old_price) * 100))}%)`,
+                    type: 'price_change',
+                    reference_id: eventData.property_id,
+                    reference_type: 'property',
+                    link: `/properties/${eventData.property_id}`,
+                    priority: 'NORMAL',
+                    requires_action: false,
+                    created_at: new Date()
+                  });
+                  
+                  await notification.save();
+                }
+              } catch (error) {
+                console.error(`Error sending price change notification to user ${userId}:`, error);
+              }
+            }
           } else if (topic === 'property-events' && eventData.event === 'PROPERTY_SOLD') {
             // Générer des notifications pour les parties impliquées dans la vente
             // ...
+          } else if (topic === 'appointment-events') {
+            // Traiter les événements d'appointement
+            switch (eventData.event) {
+              case 'APPOINTMENT_CREATED':
+                if (eventData.appointment) {
+                  // Notifier l'agent
+                  await createAppointmentNotification({
+                    recipient_id: eventData.appointment.agent_id,
+                    title: 'Nouveau rendez-vous',
+                    content: `Un nouveau rendez-vous a été programmé pour le ${new Date(eventData.appointment.date_time).toLocaleString()}`,
+                    type: 'new_appointment',
+                    reference_id: eventData.appointment.id,
+                    reference_type: 'appointment',
+                    link: `/appointments/${eventData.appointment.id}`,
+                    priority: 'NORMAL',
+                    requires_action: true
+                  });
+                }
+                break;
+                
+              case 'APPOINTMENT_UPDATED':
+                if (eventData.appointment) {
+                  // Déterminer qui doit être notifié (généralement la personne qui n'a pas fait la mise à jour)
+                  const notifyUserId = eventData.changed_by === eventData.appointment.user_id ? 
+                    eventData.appointment.agent_id : eventData.appointment.user_id;
+                  
+                  // Contenu de la notification selon le statut
+                  let title = 'Rendez-vous mis à jour';
+                  let content = `Le rendez-vous du ${new Date(eventData.appointment.date_time).toLocaleString()} a été mis à jour`;
+                  let type = 'appointment_update';
+                  let requiresAction = false;
+                  
+                  if (eventData.appointment.status === 'confirmed') {
+                    title = 'Rendez-vous confirmé';
+                    content = `Votre rendez-vous du ${new Date(eventData.appointment.date_time).toLocaleString()} a été confirmé`;
+                    type = 'appointment_confirmed';
+                  } else if (eventData.appointment.status === 'rejected') {
+                    title = 'Rendez-vous refusé';
+                    content = `Votre rendez-vous du ${new Date(eventData.appointment.date_time).toLocaleString()} a été refusé: ${eventData.appointment.rejection_reason || 'Aucune raison fournie'}`;
+                    type = 'appointment_rejected';
+                  } else if (eventData.appointment.status === 'rescheduled') {
+                    title = 'Proposition de report de rendez-vous';
+                    content = `Une nouvelle date a été proposée pour votre rendez-vous: ${new Date(eventData.appointment.reschedule_proposed).toLocaleString()}`;
+                    type = 'appointment_rescheduled';
+                    requiresAction = true;
+                  }
+                  
+                  await createAppointmentNotification({
+                    recipient_id: notifyUserId,
+                    title,
+                    content,
+                    type,
+                    reference_id: eventData.appointment.id,
+                    reference_type: 'appointment',
+                    link: `/appointments/${eventData.appointment.id}`,
+                    priority: eventData.appointment.status === 'rejected' ? 'HIGH' : 'NORMAL',
+                    requires_action: requiresAction
+                  });
+                }
+                break;
+                
+              case 'APPOINTMENT_DELETED':
+                // Notifier les deux parties
+                if (eventData.appointment) {
+                  const recipientIds = [eventData.appointment.user_id, eventData.appointment.agent_id];
+                  
+                  for (const recipientId of recipientIds) {
+                    if (recipientId !== eventData.deleted_by) {
+                      await createAppointmentNotification({
+                        recipient_id: recipientId,
+                        title: 'Rendez-vous annulé',
+                        content: `Le rendez-vous du ${new Date(eventData.appointment.date_time).toLocaleString()} a été annulé`,
+                        type: 'appointment_cancelled',
+                        reference_id: eventData.appointment.id,
+                        reference_type: 'appointment',
+                        link: `/appointments/${eventData.appointment.id}`,
+                        priority: 'HIGH',
+                        requires_action: false
+                      });
+                    }
+                  }
+                }
+                break;
+            }
+          } else if (topic === 'notification-events' && eventData.event === 'APPOINTMENT_NOTIFICATION') {
+            // Traiter les notifications spécifiques aux rendez-vous
+            await createAppointmentNotification({
+              recipient_id: eventData.user_id,
+              title: eventData.title || 'Notification de rendez-vous',
+              content: eventData.content || 'Mise à jour concernant votre rendez-vous',
+              type: eventData.type || 'appointment_update',
+              reference_id: eventData.appointment_id,
+              reference_type: 'appointment',
+              link: `/appointments/${eventData.appointment_id}`,
+              priority: eventData.priority || 'NORMAL',
+              requires_action: eventData.requires_action || false
+            });
           }
         } catch (error) {
           console.error('Error processing Kafka message:', error);
@@ -423,6 +559,48 @@ async function startServices() {
   } catch (error) {
     console.error('Error starting services:', error);
     process.exit(1);
+  }
+}
+
+// Fonction utilitaire pour créer des notifications d'appointement
+async function createAppointmentNotification(params) {
+  try {
+    // Vérifier les paramètres de notification du destinataire
+    const notificationSettings = await NotificationSettings.findOne({ user_id: params.recipient_id }) || 
+                               new NotificationSettings({ user_id: params.recipient_id });
+    
+    // Vérifier si le type de notification est désactivé pour cet utilisateur
+    if (notificationSettings.muted_types.includes(params.type)) {
+      console.log(`Notification de type ${params.type} désactivée pour l'utilisateur ${params.recipient_id}`);
+      return null;
+    }
+    
+    // Créer la notification
+    const notification = new Notification({
+      sender_id: 'SYSTEM',
+      sender_name: 'Système',
+      sender_role: 'system',
+      recipient_id: params.recipient_id,
+      title: params.title,
+      content: params.content,
+      type: params.type,
+      reference_id: params.reference_id,
+      reference_type: params.reference_type,
+      link: params.link,
+      priority: params.priority,
+      requires_action: params.requires_action,
+      created_at: new Date()
+    });
+    
+    // Sauvegarder la notification
+    const savedNotification = await notification.save();
+    
+    console.log(`Notification créée pour l'utilisateur ${params.recipient_id}`);
+    
+    return savedNotification;
+  } catch (error) {
+    console.error('Error creating appointment notification:', error);
+    return null;
   }
 }
 

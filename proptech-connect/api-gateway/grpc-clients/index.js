@@ -135,7 +135,21 @@ chatStatusMethods.forEach(method => {
     chatService[`${method}Async`] = promisify(chatClient[method].bind(chatClient));
   }
 });
+const appointmentMethods = [
+  'RespondToAppointment',
+  'AcceptReschedule',
+  'DeclineReschedule',
+  'AddFeedback',
+  'CompleteAppointment',
+  'SendAppointmentReminder',
+  'GetAppointmentStats'
+];
 
+appointmentMethods.forEach(method => {
+  if (!appointmentService[`${method}Async`] && appointmentClient[method]) {
+    appointmentService[`${method}Async`] = promisify(appointmentClient[method].bind(appointmentClient));
+  }
+});
 module.exports = {
   propertyService,
   userService,

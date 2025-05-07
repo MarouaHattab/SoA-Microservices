@@ -10,7 +10,92 @@ const typeDefs = gql`
     createdAt: String!
     updatedAt: String!
   }
-
+  // Nouveaux types pour les rendez-vous
+  type AppointmentHistory {
+    status: String!
+    dateTime: String
+    changedBy: ID!
+    changedAt: String!
+    notes: String
+  }
+  
+  input AppointmentFilterInput {
+    status: String
+    fromDate: String
+    toDate: String
+    page: Int
+    limit: Int
+  }
+  
+  type Appointment {
+    id: ID!
+    propertyId: ID!
+    property: Property
+    userId: ID!
+    user: User
+    agentId: ID!
+    agent: User
+    dateTime: String!
+    status: String!
+    notes: String
+    ownerResponse: String
+    rescheduleProposed: String
+    rescheduleReason: String
+    rejectionReason: String
+    feedback: String
+    feedbackRating: Int
+    history: [AppointmentHistory]
+    createdAt: String!
+    updatedAt: String!
+  }
+  
+  type StatusStat {
+    status: String!
+    count: Int!
+    percentage: Int!
+  }
+  
+  type DayStat {
+    day: String!
+    count: Int!
+    percentage: Int!
+  }
+  
+  type AppointmentStats {
+    totalAppointments: Int!
+    period: String!
+    statusDistribution: [StatusStat!]!
+    dayDistribution: [DayStat!]!
+    startDate: String!
+    endDate: String!
+  }
+  
+  input RespondInput {
+    response: String!  # "confirm", "reject", "reschedule"
+    reason: String
+    proposedDate: String
+  }
+  
+  input FeedbackInput {
+    rating: Int!
+    feedback: String
+  }
+  
+  extend type Query {
+    // Nouvelles requêtes
+    appointmentStats(period: String!): AppointmentStats!
+  }
+  
+  extend type Mutation {
+    // Nouvelles mutations
+    respondToAppointment(id: ID!, input: RespondInput!): Appointment!
+    acceptReschedule(id: ID!): Appointment!
+    declineReschedule(id: ID!, reason: String): Appointment!
+    completeAppointment(id: ID!): Appointment!
+    addAppointmentFeedback(id: ID!, input: FeedbackInput!): Appointment!
+    sendAppointmentReminder(id: ID!): DeleteResponse!
+  }
+  
   type Property {
     id: ID!
     title: String!

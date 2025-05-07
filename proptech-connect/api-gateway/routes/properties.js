@@ -208,5 +208,206 @@ router.get('/user/favorites', authenticateJWT, async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 });
+// Mettre à jour le fichier routes/properties.js dans l'API Gateway
+
+// Routes pour les catégories de favoris
+router.post('/favorites/categories', authenticateJWT, async (req, res) => {
+  try {
+    const { name, color, icon } = req.body;
+    
+    const result = await grpcClients.propertyService.createFavoriteCategoryAsync({
+      user_id: req.user.id,
+      name,
+      color,
+      icon
+    });
+    
+    res.status(201).json(result);
+  } catch (error) {
+    handleGrpcError(error, res);
+  }
+});
+
+router.get('/favorites/categories', authenticateJWT, async (req, res) => {
+  try {
+    const result = await grpcClients.propertyService.getFavoriteCategoriesAsync({
+      user_id: req.user.id
+    });
+    
+    res.json(result);
+  } catch (error) {
+    handleGrpcError(error, res);
+  }
+});
+
+// Mettre à jour la route d'ajout aux favoris pour prendre en compte les catégories
+router.post('/:id/favorites', authenticateJWT, async (req, res) => {
+  try {
+    const { category_ids, notes } = req.body;
+    
+    const result = await grpcClients.propertyService.addToFavoritesWithCategoriesAsync({
+      property_id: req.params.id,
+      user_id: req.user.id,
+      category_ids,
+      notes
+    });
+    
+    res.json(result);
+  } catch (error) {
+    handleGrpcError(error, res);
+  }
+});
+
+// Mettre à jour la route de récupération des favoris pour inclure les informations de catégorie
+router.get('/user/favorites', authenticateJWT, async (req, res) => {
+  try {
+    const { category_id, page, limit } = req.query;
+    
+    const result = await grpcClients.propertyService.getUserFavoritesWithCategoriesAsync({
+      user_id: req.user.id,
+      category_id,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 10
+    });
+    
+    res.json(result);
+  } catch (error) {
+    handleGrpcError(error, res);
+  }
+});
+
+// Routes pour le signalement d'avis
+router.post('/reviews/:reviewId/report', authenticateJWT, async (req, res) => {
+  try {
+    const { reason, details } = req.body;
+    
+    if (!reason) {
+      return res.status(400).json({ message: 'Reason is required' });
+    }
+    
+    const result = await grpcClients.propertyService.reportReviewAsync({
+      review_id: req.params.reviewId,
+      reporter_id: req.user.id,
+      reason,
+      details
+    });
+    
+    res.status(201).json(result);
+  } catch (error) {
+    handleGrpcError(error, res);
+  }
+});
+
+// Routes pour l'examen des signalements (admin)
+router.post('/reports/:reportId/decision', authenticateJWT, async (req, res) => {
+  try {
+    // Vérifier que l'utilisateur est admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only administrators can review reports' });
+    }
+    
+    const { decision, admin_comment } = req.body;
+    
+    if (!decision || !['accepted', 'rejected'].includes(decision)) {
+      return res.status(400).json({ message: 'Valid decision (accepted/rejected) is required' });
+    }
+    
+    const result = await grpcClients.propertyService.reviewReportAsync({
+      report_id: req.params.reportId,
+      admin_id: req.user.id,
+      decision,
+      admin_comment
+    });
+    
+    res.json(result);
+  } catch (error) {
+    handleGrpcError(error, res);
+  }
+});
+
+// Route pour répondre à un avis (pour les propriétaires)
+router.post('/reviews/:reviewId/respond', authenticateJWT, async (req, res) => {
+  try {
+    const { response } = req.body;
+    
+    if (!response || response.trim() === '') {
+      return res.status(400).json({ message: 'Response is required' });
+    }
+    
+    const result = await grpcClients.propertyService.respondToReviewAsync({
+      review_id: req.params.reviewId,
+      owner_id: req.user.id,
+      response
+    });
+    
+    res.json(result);
+  } catch (error) {
+    handleGrpcError(error, res);
+  }
+});
+
+// Route pour voter sur l'utilité d'un avis
+router.post('/reviews/:reviewId/vote', authenticateJWT, async (req, res) => {
+  try {
+    const { helpful } = req.body;
+    
+    if (helpful === undefined) {
+      return res.status(400).json({ message: 'Helpful parameter is required' });
+    }
+    
+    const result = await grpcClients.propertyService.voteReviewHelpfulAsync({
+      review_id: req.params.reviewId,
+      user_id: req.user.id,
+      helpful: !!helpful
+    });
+    
+    res.json(result);
+  } catch (error) {
+    handleGrpcError(error, res);
+  }
+});
+
+// Route pour vérifier un avis (admin)
+router.post('/reviews/:reviewId/verify', authenticateJWT, async (req, res) => {
+  try {
+    // Vérifier que l'utilisateur est admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only administrators can verify reviews' });
+    }
+    
+    const { verified } = req.body;
+    
+    if (verified === undefined) {
+      return res.status(400).json({ message: 'Verified parameter is required' });
+    }
+    
+    const result = await grpcClients.propertyService.verifyReviewAsync({
+      review_id: req.params.reviewId,
+      admin_id: req.user.id,
+      verified: !!verified
+    });
+    
+    res.json(result);
+  } catch (error) {
+    handleGrpcError(error, res);
+  }
+});
+
+// Fonction utilitaire pour gérer les erreurs gRPC
+function handleGrpcError(error, res) {
+  if (error.code === 3) { // INVALID_ARGUMENT
+    res.status(400).json({ message: error.message });
+  } else if (error.code === 5) { // NOT_FOUND
+    res.status(404).json({ message: error.message });
+  } else if (error.code === 6) { // ALREADY_EXISTS
+    res.status(409).json({ message: error.message });
+  } else if (error.code === 7) { // PERMISSION_DENIED
+    res.status(403).json({ message: error.message });
+  } else if (error.code === 9) { // FAILED_PRECONDITION
+    res.status(400).json({ message: error.message });
+  } else {
+    res.status(500).json({ message: error.message });
+  }
+}
 
 module.exports = router;

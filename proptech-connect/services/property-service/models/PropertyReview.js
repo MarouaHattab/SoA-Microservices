@@ -1,10 +1,17 @@
-const mongoose = require('mongoose');
-
+// Mettre à jour le modèle PropertyReview.js
 const propertyReviewSchema = new mongoose.Schema({
+  // Champs existants
   property_id: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Property', 
     required: true 
+  },
+  category_ratings: {
+    location: { type: Number, min: 1, max: 5 },
+    value: { type: Number, min: 1, max: 5 },
+    quality: { type: Number, min: 1, max: 5 },
+    amenities: { type: Number, min: 1, max: 5 },
+    neighborhood: { type: Number, min: 1, max: 5 }
   },
   user_id: { 
     type: String, 
@@ -23,13 +30,32 @@ const propertyReviewSchema = new mongoose.Schema({
   user_name: { 
     type: String, 
     required: true 
+  },
+  // Nouveaux champs
+  is_hidden: { 
+    type: Boolean, 
+    default: false 
+  },
+  hidden_reason: { 
+    type: String 
+  },
+  owner_response: { 
+    type: String 
+  },
+  owner_response_date: { 
+    type: Date 
+  },
+  helpful_votes: { 
+    type: Number, 
+    default: 0 
+  },
+  helpful_voters: [{ 
+    type: String 
+  }],
+  visit_verified: { 
+    type: Boolean, 
+    default: false 
   }
 }, {
   timestamps: true
 });
-
-// Index pour optimiser les recherches
-propertyReviewSchema.index({ property_id: 1, user_id: 1 }, { unique: true });
-propertyReviewSchema.index({ property_id: 1, created_at: -1 });
-
-module.exports = mongoose.model('PropertyReview', propertyReviewSchema); 

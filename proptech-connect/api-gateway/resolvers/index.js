@@ -65,6 +65,19 @@ const resolvers = {
       return grpcClients.appointmentService.getPropertyAppointmentsAsync({ property_id: propertyId });
     },
     
+    // Nouvelle requête pour les statistiques des rendez-vous
+    appointmentStats: async (_, { period }, context) => {
+      const user = getAuthUser(context);
+      
+      // Les utilisateurs normaux ne peuvent voir que leurs propres statistiques
+      const userId = user.role === 'buyer' || user.role === 'seller' ? user.id : null;
+      
+      return grpcClients.appointmentService.getAppointmentStatsAsync({ 
+        user_id: userId,
+        period
+      });
+    },
+    
     // Chat queries
     conversations: (_, __, context) => {
       const user = getAuthUser(context);
@@ -242,6 +255,73 @@ const resolvers = {
       }
       
       return grpcClients.appointmentService.deleteAppointmentAsync({ id });
+    },
+    
+    // Nouvelles mutations pour les rendez-vous
+    respondToAppointment: async (_, { id, input }, context) => {
+      const user = getAuthUser(context);
+      
+      return grpcClients.appointmentService.respondToAppointmentAsync({
+        id,
+        response: input.response,
+        reason: input.reason,
+        proposed_date: input.proposedDate,
+        responder_id: user.id
+      });
+    },
+    
+    acceptReschedule: async (_, { id }, context) => {
+      const user = getAuthUser(context);
+      
+      return grpcClients.appointmentService.acceptRescheduleAsync({
+        id,
+        user_id: user.id
+      });
+    },
+    
+    declineReschedule: async (_, { id, reason }, context) => {
+      const user = getAuthUser(context);
+      
+      return grpcClients.appointmentService.declineRescheduleAsync({
+        id,
+        user_id: user.id,
+        reason
+      });
+    },
+    
+    completeAppointment: async (_, { id }, context) => {
+      const user = getAuthUser(context);
+      
+      return grpcClients.appointmentService.completeAppointmentAsync({
+        id,
+        completed_by: user.id
+      });
+    },
+    
+    addAppointmentFeedback: async (_, { id, input }, context) => {
+      const user = getAuthUser(context);
+      
+      return grpcClients.appointmentService.addFeedbackAsync({
+        id,
+        user_id: user.id,
+        rating: input.rating,
+        feedback: input.feedback
+      });
+    },
+    
+    sendAppointmentReminder: async (_, { id }, context) => {
+      const user = getAuthUser(context);
+      
+      // Vérifier les permissions (seul l'agent ou un admin peut envoyer des rappels manuels)
+      const appointment = await grpcClients.appointmentService.getAppointmentAsync({ id });
+      
+      if (appointment.agent_id !== user.id && user.role !== 'admin') {
+        throw new AuthenticationError('Not authorized');
+      }
+      
+      return grpcClients.appointmentService.sendAppointmentReminderAsync({
+        id
+      });
     },
     
     // Chat mutations

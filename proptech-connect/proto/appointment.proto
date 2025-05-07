@@ -3,24 +3,45 @@ syntax = "proto3";
 package appointment;
 
 service AppointmentService {
+  // Méthodes existantes
   rpc GetAppointment (AppointmentRequest) returns (AppointmentResponse);
   rpc GetUserAppointments (UserAppointmentsRequest) returns (AppointmentsResponse);
   rpc GetPropertyAppointments (PropertyAppointmentsRequest) returns (AppointmentsResponse);
   rpc CreateAppointment (CreateAppointmentRequest) returns (AppointmentResponse);
   rpc UpdateAppointment (UpdateAppointmentRequest) returns (AppointmentResponse);
   rpc DeleteAppointment (AppointmentRequest) returns (DeleteResponse);
+  
+  // Nouvelles méthodes
+  rpc RespondToAppointment (RespondRequest) returns (AppointmentResponse);
+  rpc AcceptReschedule (AcceptRescheduleRequest) returns (AppointmentResponse);
+  rpc DeclineReschedule (DeclineRescheduleRequest) returns (AppointmentResponse);
+  rpc AddFeedback (FeedbackRequest) returns (AppointmentResponse);
+  rpc CompleteAppointment (CompleteRequest) returns (AppointmentResponse);
+  rpc SendAppointmentReminder (AppointmentRequest) returns (DeleteResponse);
+  rpc GetAppointmentStats (StatsRequest) returns (StatsResponse);
 }
 
+// Messages existants
 message AppointmentRequest {
   string id = 1;
 }
 
 message UserAppointmentsRequest {
   string user_id = 1;
+  string status = 2; // Filtre optionnel
+  string from_date = 3; // Format ISO: YYYY-MM-DD
+  string to_date = 4; // Format ISO: YYYY-MM-DD
+  int32 page = 5;
+  int32 limit = 6;
 }
 
 message PropertyAppointmentsRequest {
   string property_id = 1;
+  string status = 2; // Filtre optionnel
+  string from_date = 3; // Format ISO: YYYY-MM-DD
+  string to_date = 4; // Format ISO: YYYY-MM-DD
+  int32 page = 5;
+  int32 limit = 6;
 }
 
 message CreateAppointmentRequest {
@@ -28,7 +49,7 @@ message CreateAppointmentRequest {
   string user_id = 2;
   string agent_id = 3;
   string date_time = 4;
-  string status = 5; // "pending", "confirmed", "cancelled", "completed"
+  string status = 5; // "pending", "confirmed", "cancelled", "completed", "rejected", "rescheduled"
   string notes = 6;
 }
 
@@ -40,6 +61,76 @@ message UpdateAppointmentRequest {
   string date_time = 5;
   string status = 6;
   string notes = 7;
+  string changed_by = 8; // ID de l'utilisateur qui fait la modification
+  string rejection_reason = 9; // Raison de rejet (optionnel)
+  string reschedule_proposed = 10; // Nouvelle date proposée (optionnel)
+  string reschedule_reason = 11; // Raison du report (optionnel)
+}
+
+// Nouveaux messages pour les nouvelles fonctionnalités
+message RespondRequest {
+  string id = 1;
+  string response = 2; // "confirm", "reject", "reschedule"
+  string reason = 3; // Raison (pour le rejet ou le report)
+  string proposed_date = 4; // Nouvelle date proposée (pour le report)
+  string responder_id = 5; // ID de l'agent qui répond
+}
+
+message AcceptRescheduleRequest {
+  string id = 1;
+  string user_id = 2;
+}
+
+message DeclineRescheduleRequest {
+  string id = 1;
+  string user_id = 2;
+  string reason = 3;
+}
+
+message FeedbackRequest {
+  string id = 1;
+  string user_id = 2;
+  int32 rating = 3; // 1-5
+  string feedback = 4;
+}
+
+message CompleteRequest {
+  string id = 1;
+  string completed_by = 2;
+}
+
+message StatsRequest {
+  string user_id = 1; // Optionnel, pour filtrer par utilisateur
+  string period = 2; // "week", "month", "quarter", "year"
+}
+
+message StatusStat {
+  string status = 1;
+  int32 count = 2;
+  int32 percentage = 3;
+}
+
+message DayStat {
+  string day = 1;
+  int32 count = 2;
+  int32 percentage = 3;
+}
+
+message StatsResponse {
+  int32 total_appointments = 1;
+  string period = 2;
+  repeated StatusStat status_distribution = 3;
+  repeated DayStat day_distribution = 4;
+  string start_date = 5;
+  string end_date = 6;
+}
+
+message AppointmentHistory {
+  string status = 1;
+  string date_time = 2;
+  string changed_by = 3;
+  string changed_at = 4;
+  string notes = 5;
 }
 
 message Appointment {
@@ -50,8 +141,15 @@ message Appointment {
   string date_time = 5;
   string status = 6;
   string notes = 7;
-  string created_at = 8;
-  string updated_at = 9;
+  string owner_response = 8;
+  string reschedule_proposed = 9;
+  string reschedule_reason = 10;
+  string rejection_reason = 11;
+  string feedback = 12;
+  int32 feedback_rating = 13;
+  repeated AppointmentHistory history = 14;
+  string created_at = 15;
+  string updated_at = 16;
 }
 
 message AppointmentResponse {
@@ -60,6 +158,9 @@ message AppointmentResponse {
 
 message AppointmentsResponse {
   repeated Appointment appointments = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 limit = 4;
 }
 
 message DeleteResponse {

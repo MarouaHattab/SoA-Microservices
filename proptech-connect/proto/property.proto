@@ -19,6 +19,18 @@ service PropertyService {
   rpc AddToFavorites (FavoriteRequest) returns (FavoriteResponse);
   rpc RemoveFromFavorites (FavoriteRequest) returns (FavoriteResponse);
   rpc GetUserFavorites (UserFavoritesRequest) returns (PropertySearchResponse);
+   // Nouvelles méthodes pour les favoris
+  rpc CreateFavoriteCategory (FavoriteCategoryRequest) returns (FavoriteCategoryResponse);
+  rpc GetFavoriteCategories (GetFavoriteCategoriesRequest) returns (FavoriteCategoriesResponse);
+  rpc AddToFavoritesWithCategories (AddToFavoritesWithCategoriesRequest) returns (FavoriteResponse);
+  rpc GetUserFavoritesWithCategories (GetUserFavoritesWithCategoriesRequest) returns (UserFavoritesResponse);
+  
+  // Nouvelles méthodes pour les avis
+  rpc ReportReview (ReportReviewRequest) returns (ReportReviewResponse);
+  rpc ReviewReport (ReviewReportRequest) returns (ReportDecisionResponse);
+  rpc RespondToReview (RespondToReviewRequest) returns (RespondToReviewResponse);
+  rpc VoteReviewHelpful (VoteReviewHelpfulRequest) returns (VoteReviewResponse);
+  rpc VerifyReview (VerifyReviewRequest) returns (VerifyReviewResponse);
 }
 
 message PropertyRequest {
@@ -162,4 +174,222 @@ message UserFavoritesRequest {
 message FavoriteResponse {
   bool success = 1;
   string message = 2;
+}
+// Favoris avec catégories
+message FavoriteCategory {
+  string id = 1;
+  string user_id = 2;
+  string name = 3;
+  string color = 4;
+  string icon = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message FavoriteCategoryResponse {
+  FavoriteCategory category = 1;
+}
+
+message FavoriteCategoriesResponse {
+  repeated FavoriteCategory categories = 1;
+}
+
+message PropertyFavorite {
+  string id = 1;
+  string property_id = 2;
+  string user_id = 3;
+  repeated string category_ids = 4;
+  string notes = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message PropertyWithFavorite {
+  string id = 1;
+  string title = 2;
+  float price = 3;
+  string location = 4;
+  string property_type = 5;
+  int32 bedrooms = 6;
+  int32 bathrooms = 7;
+  float area = 8;
+  string image_url = 9;
+}
+
+message DetailedPropertyFavorite {
+  string id = 1;
+  string property_id = 2;
+  PropertyWithFavorite property = 3;
+  repeated FavoriteCategory categories = 4;
+  string notes = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message FavoriteResponse {
+  bool success = 1;
+  string message = 2;
+  PropertyFavorite favorite = 3;
+}
+
+message UserFavoritesResponse {
+  repeated DetailedPropertyFavorite favorites = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 limit = 4;
+}
+
+message FavoriteCategoryRequest {
+  string user_id = 1;
+  string name = 2;
+  string color = 3;
+  string icon = 4;
+}
+
+message GetFavoriteCategoriesRequest {
+  string user_id = 1;
+}
+
+message AddToFavoritesWithCategoriesRequest {
+  string property_id = 1;
+  string user_id = 2;
+  repeated string category_ids = 3;
+  string notes = 4;
+}
+
+message GetUserFavoritesWithCategoriesRequest {
+  string user_id = 1;
+  string category_id = 2;
+  int32 page = 3;
+  int32 limit = 4;
+}
+
+// Avis et notation améliorés
+message CategoryRatings {
+  float location = 1;
+  float value = 2;
+  float quality = 3;
+  float amenities = 4;
+  float neighborhood = 5;
+}
+
+message ReviewWithDetails {
+  string id = 1;
+  string property_id = 2;
+  string user_id = 3;
+  string user_name = 4;
+  int32 rating = 5;
+  string comment = 6;
+  string created_at = 7;
+  string updated_at = 8;
+  string owner_response = 9;
+  string owner_response_date = 10;
+  int32 helpful_votes = 11;
+  bool visit_verified = 12;
+  CategoryRatings category_ratings = 13;
+}
+
+message GetPropertyReviewsRequest {
+  string id = 1;
+  bool verified_only = 2;
+  string sort_by = 3;
+  int32 page = 4;
+  int32 limit = 5;
+}
+
+message PropertyReviewsWithStatsResponse {
+  repeated ReviewWithDetails reviews = 1;
+  float average_rating = 2;
+  int32 total_reviews = 3;
+  CategoryRatings category_ratings = 4;
+  int32 verified_count = 5;
+}
+
+message AddReviewWithCategoriesRequest {
+  string property_id = 1;
+  string user_id = 2;
+  string user_name = 3;
+  int32 rating = 4;
+  string comment = 5;
+  CategoryRatings category_ratings = 6;
+}
+
+message ReportReviewRequest {
+  string review_id = 1;
+  string reporter_id = 2;
+  string reason = 3;
+  string details = 4;
+}
+
+message ReviewReport {
+  string id = 1;
+  string review_id = 2;
+  string reporter_id = 3;
+  string reason = 4;
+  string details = 5;
+  string status = 6;
+  string admin_comment = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+message ReportReviewResponse {
+  ReviewReport report = 1;
+}
+
+message ReviewReportRequest {
+  string report_id = 1;
+  string admin_id = 2;
+  string decision = 3;
+  string admin_comment = 4;
+}
+
+message ReportDecisionResponse {
+  bool success = 1;
+  string message = 2;
+  ReviewReport report = 3;
+}
+
+message RespondToReviewRequest {
+  string review_id = 1;
+  string owner_id = 2;
+  string response = 3;
+}
+
+message RespondToReviewResponse {
+  bool success = 1;
+  ReviewWithDetails review = 2;
+}
+
+message VoteReviewHelpfulRequest {
+  string review_id = 1;
+  string user_id = 2;
+  bool helpful = 3;
+}
+
+message VoteReviewResponse {
+  bool success = 1;
+  HelpfulVote review = 2;
+}
+
+message HelpfulVote {
+  string id = 1;
+  int32 helpful_votes = 2;
+  bool has_voted = 3;
+}
+
+message VerifyReviewRequest {
+  string review_id = 1;
+  string admin_id = 2;
+  bool verified = 3;
+}
+
+message VerifyReviewResponse {
+  bool success = 1;
+  VerifiedStatus review = 2;
+}
+
+message VerifiedStatus {
+  string id = 1;
+  bool visit_verified = 2;
 }
