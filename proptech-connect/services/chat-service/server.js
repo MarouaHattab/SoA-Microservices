@@ -1133,6 +1133,7 @@ async function startServices() {
 startServices();
 
 // Gérer l'arrêt gracieux
+// Gérer l'arrêt gracieux
 process.on('SIGINT', async () => {
   console.log('Arrêt du service de chat...');
   try {
@@ -1144,8 +1145,4 @@ process.on('SIGINT', async () => {
     console.error('Erreur lors de la fermeture des connexions:', error);
   }
   process.exit(0);
-}
-
-
-
-);
+});

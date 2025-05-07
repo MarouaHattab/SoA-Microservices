@@ -712,12 +712,42 @@ server.addService(appointmentProto.AppointmentService.service, {
   },
   
   // Accepter une proposition de report
-  // Accepter une proposition de report (suite)
   acceptReschedule: async (call, callback) => {
     try {
       const { id, user_id } = call.request;
       
-      // [Vérifications préalables déjà traitées dans l'extrait précédent]
+      // Vérifier que le rendez-vous existe
+      const appointment = await Appointment.findById(id);
+      if (!appointment) {
+        return callback({
+          code: grpc.status.NOT_FOUND,
+          message: 'Appointment not found'
+        });
+      }
+      
+      // Vérifier que l'utilisateur est bien le demandeur du rendez-vous
+      if (appointment.user_id !== user_id) {
+        return callback({
+          code: grpc.status.PERMISSION_DENIED,
+          message: 'Only the appointment requester can accept reschedule proposals'
+        });
+      }
+      
+      // Vérifier que le rendez-vous est bien en statut 'rescheduled'
+      if (appointment.status !== 'rescheduled') {
+        return callback({
+          code: grpc.status.FAILED_PRECONDITION,
+          message: `Cannot accept reschedule for appointment with status: ${appointment.status}`
+        });
+      }
+      
+      // Vérifier qu'une date a bien été proposée
+      if (!appointment.reschedule_proposed) {
+        return callback({
+          code: grpc.status.FAILED_PRECONDITION,
+          message: 'No reschedule date has been proposed'
+        });
+      }
       
       // Mettre à jour le rendez-vous avec la nouvelle date
       const newDate = appointment.reschedule_proposed;

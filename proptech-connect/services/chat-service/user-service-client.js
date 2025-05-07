@@ -41,6 +41,22 @@ async function getUserById(userId) {
     };
   }
 }
+async function getAdminIds() {
+  try {
+    // Appeler le service utilisateur pour obtenir tous les utilisateurs
+    const response = await getUsers({});
+    
+    // Filtrer les administrateurs et récupérer leurs IDs
+    const adminIds = response.users
+      .filter(user => user.role === 'admin')
+      .map(admin => admin.id);
+    
+    return adminIds;
+  } catch (error) {
+    console.error('Error getting admin IDs:', error);
+    return []; // Retourner un tableau vide en cas d'erreur
+  }
+}
 
 module.exports = {
   getUserById
