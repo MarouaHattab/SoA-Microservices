@@ -33,5 +33,14 @@ module.exports = {
     getAppointmentsForProperty: async (propertyId) => {
         console.log(`[STUB] Getting appointments for property ${propertyId}`);
         return []; // Default implementation returning empty array
+    },
+    
+    // Add the missing getUserPropertyAppointmentsAsync method
+    getUserPropertyAppointmentsAsync: async (params) => {
+        console.log(`[STUB] getUserPropertyAppointmentsAsync called with:`, params);
+        return { 
+            appointments: [],
+            total_count: 0
+        }; // Return empty appointments array as a stub
     }
 };

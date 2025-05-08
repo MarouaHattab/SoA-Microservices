@@ -12,6 +12,7 @@ service PropertyService {
   // Nouvelles méthodes pour les notes et commentaires
   rpc AddReview (AddReviewRequest) returns (ReviewResponse);
   rpc GetPropertyReviews (PropertyRequest) returns (PropertyReviewsResponse);
+  rpc GetReview (ReviewRequest) returns (ReviewResponse);
   rpc UpdateReview (UpdateReviewRequest) returns (ReviewResponse);
   rpc DeleteReview (DeleteReviewRequest) returns (DeleteResponse);
   
@@ -33,6 +34,10 @@ service PropertyService {
 }
 
 message PropertyRequest {
+  string id = 1;
+}
+
+message ReviewRequest {
   string id = 1;
 }
 
@@ -128,8 +133,10 @@ message AddReviewRequest {
 message UpdateReviewRequest {
   string review_id = 1;
   string user_id = 2;
-  int32 rating = 3;
-  string comment = 4;
+  string user_name = 3;
+  int32 rating = 4;
+  string comment = 5;
+  CategoryRatings category_ratings = 6;
 }
 
 message DeleteReviewRequest {

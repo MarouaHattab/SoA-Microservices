@@ -24,6 +24,7 @@ const userClient = new userProto.UserService(
 
 // Promisifier les méthodes du client
 const getUser = promisify(userClient.GetUser.bind(userClient));
+const getUsers = promisify(userClient.GetUsers.bind(userClient));
 
 // Fonction pour récupérer les informations d'un utilisateur
 async function getUserById(userId) {
@@ -42,6 +43,24 @@ async function getUserById(userId) {
     }
 }
 
+// Fonction pour récupérer les IDs des administrateurs
+async function getAdminIds() {
+    try {
+        // Use the GetUsers method and filter for admins
+        const response = await getUsers({});
+        if (response && response.users && Array.isArray(response.users)) {
+            // Filter users with role 'admin'
+            const adminUsers = response.users.filter(user => user.role === 'admin');
+            return adminUsers.map(user => user.id);
+        }
+        return [];
+    } catch (error) {
+        console.error('Error getting admin users:', error);
+        return [];
+    }
+}
+
 module.exports = {
-    getUserById
+    getUserById,
+    getAdminIds
 };

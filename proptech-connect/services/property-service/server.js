@@ -205,6 +205,8 @@ server.addService(propertyProto.PropertyService.service, {
   // Ajouter une note et un commentaire
   AddReview: async (call, callback) => {
     try {
+      console.log('AddReview - Received request:', JSON.stringify(call.request, null, 2));
+      
       const { 
         property_id, 
         user_id, 
@@ -214,6 +216,10 @@ server.addService(propertyProto.PropertyService.service, {
         // Nouvelles catégories
         category_ratings
       } = call.request;
+      
+      // Set the reviewer name to the provided name or 'Anonymous'
+      const reviewerName = user_name && user_name.trim() !== '' ? user_name : 'Anonymous';
+      console.log('Using reviewer name:', reviewerName);
 
       // Vérifier si l'utilisateur a déjà laissé un avis
       const existingReview = await PropertyReview.findOne({ property_id, user_id });
@@ -242,7 +248,7 @@ server.addService(propertyProto.PropertyService.service, {
       const review = new PropertyReview({
         property_id,
         user_id,
-        user_name,
+        user_name: reviewerName, // Use the name we determined
         rating,
         comment,
         visit_verified,
@@ -253,6 +259,14 @@ server.addService(propertyProto.PropertyService.service, {
           amenities: category_ratings?.amenities || rating,
           neighborhood: category_ratings?.neighborhood || rating
         }
+      });
+
+      console.log('Creating review with data:', {
+        property_id,
+        user_id,
+        user_name: reviewerName,
+        rating,
+        comment
       });
 
       await review.save();
@@ -285,8 +299,25 @@ server.addService(propertyProto.PropertyService.service, {
         console.error('Error notifying property owner about new review:', error);
       }
 
-      callback(null, { review });
+      // Get the saved review to ensure we have the timestamps
+      const savedReview = await PropertyReview.findById(review._id);
+      
+      // Format the response with properly formatted timestamps
+      const formattedReview = {
+        id: savedReview._id.toString(),
+        property_id: savedReview.property_id.toString(),
+        user_id: savedReview.user_id,
+        user_name: savedReview.user_name,
+        rating: savedReview.rating,
+        comment: savedReview.comment,
+        created_at: savedReview.createdAt.toISOString(),
+        updated_at: savedReview.updatedAt.toISOString()
+      };
+
+      console.log('Sending formatted review response:', formattedReview);
+      callback(null, { review: formattedReview });
     } catch (error) {
+      console.error('Error in AddReview:', error);
       callback({
         code: grpc.status.INTERNAL,
         message: error.message
@@ -346,11 +377,11 @@ server.addService(propertyProto.PropertyService.service, {
         id: review._id.toString(),
         property_id: review.property_id.toString(),
         user_id: review.user_id,
-        user_name: review.user_name,
+        user_name: review.user_name && review.user_name.trim() !== '' ? review.user_name : 'Anonymous',
         rating: review.rating,
         comment: review.comment,
-        created_at: review.createdAt.toISOString(),
-        updated_at: review.updatedAt.toISOString(),
+        created_at: review.createdAt ? review.createdAt.toISOString() : new Date().toISOString(),
+        updated_at: review.updatedAt ? review.updatedAt.toISOString() : new Date().toISOString(),
         owner_response: review.owner_response || null,
         owner_response_date: review.owner_response_date ? review.owner_response_date.toISOString() : null,
         helpful_votes: review.helpful_votes || 0,
@@ -376,6 +407,45 @@ server.addService(propertyProto.PropertyService.service, {
         })
       });
     } catch (error) {
+      callback({
+        code: grpc.status.INTERNAL,
+        message: error.message
+      });
+    }
+  },
+
+  // Obtenir un avis spécifique par ID
+  GetReview: async (call, callback) => {
+    try {
+      const { id } = call.request;
+      console.log('Getting review by ID:', id);
+      
+      const review = await PropertyReview.findById(id);
+      if (!review) {
+        return callback({
+          code: grpc.status.NOT_FOUND,
+          message: 'Review not found'
+        });
+      }
+
+      // Use the username from the review or default to 'Anonymous'
+      const userName = review.user_name && review.user_name.trim() !== '' ? 
+        review.user_name : 'Anonymous';
+      
+      const formattedReview = {
+        id: review._id.toString(),
+        property_id: review.property_id.toString(),
+        user_id: review.user_id,
+        user_name: userName,
+        rating: review.rating,
+        comment: review.comment,
+        created_at: review.createdAt.toISOString(),
+        updated_at: review.updatedAt.toISOString()
+      };
+      
+      callback(null, { review: formattedReview });
+    } catch (error) {
+      console.error('Error in GetReview:', error);
       callback({
         code: grpc.status.INTERNAL,
         message: error.message
@@ -509,7 +579,7 @@ server.addService(propertyProto.PropertyService.service, {
   // Mettre à jour un avis
   UpdateReview: async (call, callback) => {
     try {
-      const { review_id, user_id, rating, comment, category_ratings } = call.request;
+      const { review_id, user_id, user_name, rating, comment, category_ratings } = call.request;
 
       const review = await PropertyReview.findOne({ _id: review_id, user_id });
       if (!review) {
@@ -521,6 +591,11 @@ server.addService(propertyProto.PropertyService.service, {
 
       review.rating = rating;
       review.comment = comment;
+      
+      // Update user_name if provided, using 'Anonymous' if blank
+      if (user_name !== undefined) {
+        review.user_name = user_name && user_name.trim() !== '' ? user_name : 'Anonymous';
+      }
       
       // Mettre à jour les notes par catégorie si fournies
       if (category_ratings) {
@@ -537,8 +612,24 @@ server.addService(propertyProto.PropertyService.service, {
 
       // Mettre à jour la note moyenne de la propriété avec la nouvelle fonction
       await updatePropertyRatings(review.property_id);
+      
+      // Get the freshly saved review to ensure we have updated timestamps
+      const savedReview = await PropertyReview.findById(review._id);
+      
+      // Format the response with properly formatted timestamps
+      const formattedReview = {
+        id: savedReview._id.toString(),
+        property_id: savedReview.property_id.toString(),
+        user_id: savedReview.user_id,
+        user_name: savedReview.user_name,
+        rating: savedReview.rating,
+        comment: savedReview.comment,
+        created_at: savedReview.createdAt.toISOString(),
+        updated_at: savedReview.updatedAt.toISOString()
+      };
 
-      callback(null, { review });
+      console.log('Sending formatted review response:', formattedReview);
+      callback(null, { review: formattedReview });
     } catch (error) {
       callback({
         code: grpc.status.INTERNAL,

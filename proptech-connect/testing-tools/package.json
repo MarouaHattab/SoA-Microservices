@@ -1,0 +1,19 @@
+{
+  "name": "proptech-connect-testing-tools",
+  "version": "1.0.0",
+  "description": "Testing tools for PropTech Connect microservices",
+  "main": "index.js",
+  "scripts": {
+    "check": "node check-services.js",
+    "setup": "node setup-test-data.js",
+    "newman": "newman run ../PropTech-Connect-Postman-Collection.json -e postman_environment.json",
+    "test:grpc:user": "node test-user-service.js",
+    "test:grpc": "npm run test:grpc:user"
+  },
+  "dependencies": {
+    "axios": "^1.5.0",
+    "newman": "^6.0.0",
+    "@grpc/grpc-js": "^1.8.0",
+    "@grpc/proto-loader": "^0.7.0"
+  }
+} 
