@@ -44,7 +44,15 @@ const appointmentProto = grpc.loadPackageDefinition(packageDefinition).appointme
 
 // Fonction d'utilitaire pour valider les dates
 const validateAppointmentDate = (date) => {
-  const appointmentDate = new Date(date);
+  // First ensure we have a valid date object
+  if (!(date instanceof Date) || isNaN(date.getTime())) {
+    return {
+      valid: false,
+      message: 'Date invalide: veuillez fournir une date et heure valides'
+    };
+  }
+  
+  const appointmentDate = date;
   const now = new Date();
   
   // Vérifier que la date est dans le futur
@@ -338,10 +346,65 @@ server.addService(appointmentProto.AppointmentService.service, {
   
   // Créer un nouveau rendez-vous
   createAppointment: async (call, callback) => {
+  try {
+    // Log the entire request for debugging
+    console.log('CreateAppointment FULL REQUEST:', JSON.stringify(call.request, null, 2));
+    
+    // Improved handling of date_time parsing
+    let appointmentDate;
     try {
-      const appointmentData = {
-        ...call.request,
-        date_time: new Date(call.request.date_time)
+      console.log('Received date_time value:', call.request.date_time);
+      
+      if (!call.request.date_time || call.request.date_time === 'Invalid Date') {
+        return callback({
+          code: grpc.status.INVALID_ARGUMENT,
+          message: 'Invalid date_time format: Must be a valid ISO date string (YYYY-MM-DDTHH:MM:SS.sssZ)'
+        });
+      }
+      
+      // Parse the date string
+      appointmentDate = new Date(call.request.date_time);
+      
+      if (isNaN(appointmentDate.getTime())) {
+        return callback({
+          code: grpc.status.INVALID_ARGUMENT,
+          message: 'Invalid date_time format: The provided string could not be parsed as a date'
+        });
+      }
+    } catch (dateError) {
+      console.error('Error parsing date_time:', dateError);
+      return callback({
+        code: grpc.status.INVALID_ARGUMENT,
+        message: `Invalid date_time: ${dateError.message}`
+      });
+    }
+    
+    // CRITICAL FIX: Ensure required fields have values or defaults
+    // This prevents Mongoose validation errors
+    const user_id = call.request.user_id || '';
+    const agent_id = call.request.agent_id || '';
+    const status = call.request.status || 'pending';
+    
+    console.log('Extracted fields for validation:');
+    console.log('- user_id:', user_id);
+    console.log('- agent_id:', agent_id);
+    console.log('- status:', status);
+    
+    // Log entire structure before creating the appointment
+    console.log('Full appointment data before creation:', JSON.stringify({
+      ...call.request,
+      user_id,
+      agent_id,
+      status,
+      date_time: appointmentDate
+    }, null, 2));
+    
+    const appointmentData = {
+      ...call.request,
+      user_id,  // Use the extracted or default user_id
+      agent_id, // Use the extracted or default agent_id
+      status,   // Use the extracted or default status
+      date_time: appointmentDate
       };
       
       // Valider la date du rendez-vous
@@ -448,7 +511,28 @@ server.addService(appointmentProto.AppointmentService.service, {
       
       // Si la date change, la valider
       if (appointmentData.date_time) {
-        appointmentData.date_time = new Date(appointmentData.date_time);
+        try {
+          // Log incoming date string for debugging
+          console.log('Updating with date_time value:', appointmentData.date_time);
+          
+          // Parse the date string
+          appointmentData.date_time = new Date(appointmentData.date_time);
+          
+          // Validate the parsed date
+          if (isNaN(appointmentData.date_time.getTime())) {
+            return callback({
+              code: grpc.status.INVALID_ARGUMENT,
+              message: 'Invalid date_time format: The provided string could not be parsed as a date'
+            });
+          }
+        } catch (dateError) {
+          console.error('Error parsing date_time in update:', dateError);
+          return callback({
+            code: grpc.status.INVALID_ARGUMENT,
+            message: `Invalid date_time: ${dateError.message}`
+          });
+        }
+        
         const validation = validateAppointmentDate(appointmentData.date_time);
         if (!validation.valid) {
           return callback({
@@ -633,8 +717,30 @@ server.addService(appointmentProto.AppointmentService.service, {
             });
           }
           
+          let newDate;
+          try {
+            // Log incoming date string for debugging
+            console.log('Received proposed_date value:', proposed_date);
+            
+            // Parse the date string
+            newDate = new Date(proposed_date);
+            
+            // Validate the parsed date
+            if (isNaN(newDate.getTime())) {
+              return callback({
+                code: grpc.status.INVALID_ARGUMENT,
+                message: 'Invalid proposed_date format: The provided string could not be parsed as a date'
+              });
+            }
+          } catch (dateError) {
+            console.error('Error parsing proposed_date:', dateError);
+            return callback({
+              code: grpc.status.INVALID_ARGUMENT,
+              message: `Invalid proposed_date: ${dateError.message}`
+            });
+          }
+          
           // Valider la nouvelle date
-          const newDate = new Date(proposed_date);
           const validation = validateAppointmentDate(newDate);
           if (!validation.valid) {
             return callback({

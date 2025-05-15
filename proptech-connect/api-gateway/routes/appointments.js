@@ -79,26 +79,87 @@ router.get('/:id', async (req, res) => {
 });
 
 // Créer un nouveau rendez-vous
-router.post('/', async (req, res) => {
+router.post('/', authenticateJWT, async (req, res) => {
   try {
-    const appointmentData = {
-      ...req.body
-    };
+    // Enhanced debugging - log everything
+    console.log('======================== APPOINTMENT DEBUG ========================');
+    console.log('Creating appointment with body:', JSON.stringify(req.body, null, 2));
+    console.log('User from token:', JSON.stringify(req.user, null, 2));
     
-    // S'assurer que l'utilisateur crée un RDV pour lui-même
-    if (appointmentData.user_id !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'agent') {
-      return res.status(403).json({ message: 'Not authorized' });
+    // Basic validation
+    if (!req.body.property_id) {
+      console.log('ERROR: Missing property_id');
+      return res.status(400).json({ message: 'property_id is required' });
     }
     
+    if (!req.body.date_time) {
+      console.log('ERROR: Missing date_time');
+      return res.status(400).json({ message: 'date_time is required' });
+    }
+    
+    // Get property details to find the agent_id (owner_id)
+    let propertyDetails;
+    try {
+      console.log('Fetching property details for ID:', req.body.property_id);
+      propertyDetails = await grpcClients.propertyService.getPropertyAsync({ 
+        id: req.body.property_id 
+      });
+      
+      console.log('Property service response:', JSON.stringify(propertyDetails, null, 2));
+      
+      if (!propertyDetails || !propertyDetails.property) {
+        console.log('ERROR: Property not found');
+        return res.status(404).json({ message: 'Property not found' });
+      }
+      
+      console.log('Found property:', propertyDetails.property.title);
+      console.log('Property owner_id:', propertyDetails.property.owner_id);
+    } catch (propertyError) {
+      console.error('Error fetching property details:', propertyError);
+      return res.status(404).json({ 
+        message: 'Property not found or error retrieving property details',
+        details: propertyError.message
+      });
+    }
+    
+    // Explicitly set required fields with non-empty values
+    const user_id = req.user.id || 'default_user';
+    const agent_id = propertyDetails.property.owner_id || 'default_agent';
+    const status = 'pending';
+    
+    console.log('Setting required fields with non-empty values:');
+    console.log('- user_id:', user_id);
+    console.log('- agent_id:', agent_id);
+    console.log('- status:', status);
+    
+    // Prepare the appointment data with required fields
+    const appointmentData = {
+      ...req.body,
+      user_id,   // Explicitly set from JWT token with fallback
+      agent_id,  // Explicitly set from property owner with fallback
+      status     // Always set for new appointments
+    };
+    
+    console.log('Creating appointment with data:', JSON.stringify(appointmentData, null, 2));
+    console.log('Sending to appointment service...');
+    
     const appointment = await grpcClients.appointmentService.createAppointmentAsync(appointmentData);
+    console.log('Appointment created successfully:', JSON.stringify(appointment, null, 2));
+    console.log('================================================================');
+    
     res.status(201).json(appointment);
   } catch (error) {
+    console.error('ERROR in appointment creation:', error);
+    console.log('Error code:', error.code);
+    console.log('Error details:', error.details || 'No details');
+    console.log('================================================================');
+    
     if (error.code === 3) { // INVALID_ARGUMENT
       return res.status(400).json({ message: error.message });
     } else if (error.code === 6) { // ALREADY_EXISTS
       return res.status(409).json({ message: error.message });
     }
-    res.status(400).json({ message: error.message });
+    res.status(500).json({ message: error.message });
   }
 });
 

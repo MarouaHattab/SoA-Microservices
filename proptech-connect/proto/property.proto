@@ -51,6 +51,7 @@ message PropertySearchRequest {
   string property_type = 7;
   int32 page = 8;
   int32 limit = 9;
+  string owner_id = 10;
 }
 
 message CreatePropertyRequest {
@@ -153,6 +154,7 @@ message Review {
   string comment = 6;
   string created_at = 7;
   string updated_at = 8;
+  CategoryRatings category_ratings = 9;
 }
 
 message ReviewResponse {

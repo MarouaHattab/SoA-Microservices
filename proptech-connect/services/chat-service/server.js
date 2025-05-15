@@ -79,10 +79,15 @@ const chatService = {
       
       // Si aucune conversation n'est spécifiée, créer une nouvelle conversation
       if (!actualConversationId && receiver_id) {
+        // Check if user is messaging themselves
+        const isSelfMessage = sender_id === receiver_id;
+        console.log(`Self message: ${isSelfMessage}`);
+        
         // Vérifier si une conversation existe déjà entre ces utilisateurs
         const existingConversation = await Conversation.findOne({
           is_group: false,
-          participants: { $all: [sender_id, receiver_id] }
+          participants: { $all: [sender_id, receiver_id] },
+          ...(isSelfMessage ? { participants: { $size: 1 } } : {})
         });
         
         if (existingConversation) {
@@ -94,8 +99,8 @@ const chatService = {
           
           // Créer une nouvelle conversation
           const newConversation = new Conversation({
-            participants: [sender_id, receiver_id],
-            participant_roles: [senderInfo.role, receiverInfo.role],
+            participants: isSelfMessage ? [sender_id] : [sender_id, receiver_id],
+            participant_roles: isSelfMessage ? [senderInfo.role] : [senderInfo.role, receiverInfo.role],
             is_group: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -128,7 +133,12 @@ const chatService = {
         sender_id,
         sender_role: senderInfo.role,
         sender_name: senderInfo.name,
-        receiver_id: conversation.is_group ? null : (conversation.participants.find(p => p !== sender_id) || null),
+        receiver_id: conversation.is_group ? 
+                    // For group conversations, include all participants except the sender
+                    conversation.participants.filter(p => p !== sender_id).join(',') : 
+                    // For one-on-one conversations, use the existing logic
+                    (conversation.participants.length === 1 || sender_id === receiver_id ? sender_id : 
+                    conversation.participants.find(p => p !== sender_id) || ''),
         content,
         conversation_id: actualConversationId,
         is_read: false,
@@ -730,6 +740,28 @@ const chatService = {
       // Obtenir les informations de l'utilisateur
       const userInfo = await getUserInfo(user_id);
       
+      // Enregistrer la question de l'utilisateur en tant que message si conversation_id est fourni
+      if (conversation_id) {
+        try {
+          const userQueryMessage = new Message({
+            sender_id: user_id,
+            sender_role: userInfo.role,
+            sender_name: userInfo.name,
+            receiver_id: 'AI',
+            content: query,
+            conversation_id,
+            is_read: true,
+            is_ai: false,
+            created_at: new Date().toISOString()
+          });
+          
+          await userQueryMessage.save();
+          console.log('User query saved to conversation');
+        } catch (dbError) {
+          console.error('Error saving user query to database:', dbError);
+        }
+      }
+      
       // Appeler l'API Gemini
       const geminiClient = require('./gemini-client');
       let aiResponse;
@@ -743,15 +775,12 @@ const chatService = {
       
       console.log('AI Response:', aiResponse.substring(0, 100) + '...');
       
-      // Rechercher des propriétés pertinentes à suggérer
-      const propertySuggestions = await require('./property-suggestions').findRelevantProperties(query);
-      
       // Enregistrer la réponse en tant que message si conversation_id est fourni
       if (conversation_id) {
         try {
           const newMessage = new Message({
             sender_id: 'AI',
-            sender_role: 'assistant',
+            sender_role: 'admin',
             sender_name: 'Assistant IA',
             receiver_id: user_id,
             content: aiResponse,
@@ -774,8 +803,7 @@ const chatService = {
       }
       
       callback(null, {
-        response: aiResponse,
-        suggested_properties: propertySuggestions || []
+        response: aiResponse
       });
     } catch (error) {
       console.error('Error in AskAI:', error);
@@ -899,9 +927,12 @@ const chatService = {
     try {
       const { user_id, conversation_id, is_typing } = call.request;
       
+      console.log(`UpdateTypingStatus: user=${user_id}, conversation=${conversation_id}, is_typing=${is_typing}`);
+      
       // Vérifier que la conversation existe
       const conversation = await Conversation.findById(conversation_id);
       if (!conversation) {
+        console.error(`Conversation not found: ${conversation_id}`);
         return callback({
           code: grpc.status.NOT_FOUND,
           message: 'Conversation not found'
@@ -910,6 +941,7 @@ const chatService = {
       
       // Vérifier que l'utilisateur est membre de la conversation
       if (!conversation.participants.includes(user_id)) {
+        console.error(`User ${user_id} is not a participant in conversation ${conversation_id}`);
         return callback({
           code: grpc.status.PERMISSION_DENIED,
           message: 'User is not a participant in this conversation'
@@ -918,6 +950,8 @@ const chatService = {
       
       // Mettre à jour le statut de saisie
       const result = typingStatusManager.updateTypingStatus(conversation_id, user_id, is_typing);
+      console.log(`Typing status updated: ${result}`);
+      console.log(`Current typing users for ${conversation_id}:`, typingStatusManager.getTypingUsers(conversation_id));
       
       // Produire un événement Kafka pour le changement de statut de saisie
       await producer.send({
@@ -950,9 +984,12 @@ const chatService = {
     try {
       const { conversation_id } = call.request;
       
+      console.log(`GetTypingUsers: conversation=${conversation_id}`);
+      
       // Vérifier que la conversation existe
       const conversation = await Conversation.findById(conversation_id);
       if (!conversation) {
+        console.error(`Conversation not found: ${conversation_id}`);
         return callback({
           code: grpc.status.NOT_FOUND,
           message: 'Conversation not found'
@@ -961,6 +998,7 @@ const chatService = {
       
       // Obtenir la liste des utilisateurs en train de taper
       const typingUserIds = typingStatusManager.getTypingUsers(conversation_id);
+      console.log(`Typing users for ${conversation_id}:`, typingUserIds);
       
       callback(null, { typing_user_ids: typingUserIds });
     } catch (error) {
@@ -973,89 +1011,6 @@ const chatService = {
   }
   
 };
-// Mise à jour dans chat-service/server.js
-
-// Traiter les événements de rendez-vous
-// Setup Kafka consumer
-async function setupKafkaConsumer() {
-  try {
-    await consumer.connect();
-    console.log('Consumer connected to Kafka');
-
-    await consumer.subscribe({ topics: ['appointment-events'] });
-    console.log('Subscribed to appointment-events topic');
-
-    await consumer.run({
-      eachMessage: async ({ topic, partition, message }) => {
-        console.log(`Received message from topic: ${topic}`);
-
-        if (topic === 'appointment-events') {
-          const eventData = JSON.parse(message.value.toString());
-
-          // Notifier les participants via le chat si nécessaire
-          if (['APPOINTMENT_CREATED', 'APPOINTMENT_UPDATED', 'APPOINTMENT_DELETED'].includes(eventData.event)) {
-            try {
-              // Vérifier si une conversation existe entre les participants
-              const appointment = eventData.appointment;
-
-              if (appointment && appointment.user_id && appointment.agent_id) {
-                const existingConversation = await Conversation.findOne({
-                  is_group: false,
-                  participants: { $all: [appointment.user_id, appointment.agent_id] }
-                });
-
-                if (existingConversation) {
-                  // Créer un message système pour informer de l'événement de rendez-vous
-                  let content = '';
-
-                  switch (eventData.event) {
-                    case 'APPOINTMENT_CREATED':
-                      content = `Nouveau rendez-vous programmé pour le ${new Date(appointment.date_time).toLocaleString()}`;
-                      break;
-                    case 'APPOINTMENT_UPDATED':
-                      content = `Le rendez-vous du ${new Date(appointment.date_time).toLocaleString()} a été mis à jour. Statut: ${appointment.status}`;
-                      break;
-                    case 'APPOINTMENT_DELETED':
-                      content = `Le rendez-vous a été annulé`;
-                      break;
-                  }
-
-                  const systemMessage = new Message({
-                    sender_id: 'SYSTEM',
-                    sender_role: 'system',
-                    sender_name: 'Système',
-                    receiver_id: null,
-                    content,
-                    conversation_id: existingConversation._id,
-                    is_read: false,
-                    is_ai: false,
-                    created_at: new Date().toISOString()
-                  });
-
-                  await systemMessage.save();
-
-                  // Mettre à jour la date de mise à jour de la conversation
-                  await Conversation.findByIdAndUpdate(existingConversation._id, {
-                    updated_at: new Date().toISOString()
-                  });
-                }
-              }
-            } catch (error) {
-              console.error('Error processing appointment event in chat service:', error);
-            }
-          }
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error setting up Kafka consumer:', error);
-  }
-}
-
-// Call the function to set up the consumer
-setupKafkaConsumer().catch(err => {
-  console.error('Failed to set up Kafka consumer:', err);
-});
 
 // Connexion à MongoDB et Kafka
 const PORT = process.env.PORT || 50054;
@@ -1070,17 +1025,27 @@ async function startServices() {
     // Connecter à Kafka
     await producer.connect();
     await consumer.connect();
+    console.log('Consumer connected to Kafka');
     
-    // S'abonner aux sujets Kafka pertinents
-    await consumer.subscribe({ topic: 'user-events', fromBeginning: false });
-    await consumer.subscribe({ topic: 'property-events', fromBeginning: false });
+    // S'abonner à TOUS les sujets Kafka pertinents en une seule opération
+    await consumer.subscribe({ 
+      topics: ['user-events', 'property-events', 'appointment-events'],
+      fromBeginning: false 
+    });
+    console.log('Subscribed to all required topics');
     
     // Traiter les messages Kafka
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
         try {
           const eventData = JSON.parse(message.value.toString());
-          console.log(`Received Kafka event from ${topic}:`, eventData.event || 'unknown event');
+          const eventKey = message.key ? message.key.toString() : null;
+          
+          if (topic === 'property-events') {
+            console.log(`Received Kafka event from ${topic}: ${eventKey || 'unknown event'}`);
+          } else {
+            console.log(`Received Kafka event from ${topic}:`, eventData.event || eventKey || 'unknown event');
+          }
           
           // Traiter différents types d'événements
           if (topic === 'user-events') {
@@ -1089,41 +1054,117 @@ async function startServices() {
               // Mettre à jour les informations utilisateur dans les messages et groupes
             }
           } else if (topic === 'property-events') {
-            // Traiter les événements liés aux propriétés
-            if (eventData.event === 'PROPERTY_SOLD' && eventData.buyer_id && eventData.seller_id) {
-              // Créer une conversation entre l'acheteur et le vendeur si elle n'existe pas déjà
-              const existingConversation = await Conversation.findOne({
-                is_group: false,
-                participants: { $all: [eventData.buyer_id, eventData.seller_id] }
-              });
+            // For property events, the event type is in the message key
+            const eventType = eventKey || (eventData.event || '');
+            
+            switch (eventType) {
+              case 'PROPERTY_SOLD':
+                if (eventData.buyer_id && eventData.seller_id) {
+                  // Créer une conversation entre l'acheteur et le vendeur si elle n'existe pas déjà
+                  const existingConversation = await Conversation.findOne({
+                    is_group: false,
+                    participants: { $all: [eventData.buyer_id, eventData.seller_id] }
+                  });
+                  
+                  if (!existingConversation) {
+                    const buyerInfo = await getUserInfo(eventData.buyer_id);
+                    const sellerInfo = await getUserInfo(eventData.seller_id);
+                    
+                    const newConversation = new Conversation({
+                      participants: [eventData.buyer_id, eventData.seller_id],
+                      participant_roles: [buyerInfo.role, sellerInfo.role],
+                      is_group: false,
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString()
+                    });
+                    
+                    const savedConversation = await newConversation.save();
+                    
+                    // Créer un message système pour annoncer la vente
+                    const systemMessage = new Message({
+                      sender_id: 'SYSTEM',
+                      sender_role: 'system',
+                      sender_name: 'Système',
+                      content: `Transaction pour la propriété "${eventData.property_title}" initiée. Utilisez cette conversation pour discuter des détails.`,
+                      conversation_id: savedConversation._id,
+                      is_read: false,
+                      is_ai: false,
+                      created_at: new Date().toISOString()
+                    });
+                    
+                    await systemMessage.save();
+                  }
+                }
+                break;
               
-              if (!existingConversation) {
-                const buyerInfo = await getUserInfo(eventData.buyer_id);
-                const sellerInfo = await getUserInfo(eventData.seller_id);
+              case 'property-created':
+                console.log(`New property created: ${eventData.property_id || 'unknown'}`);
+                break;
                 
-                const newConversation = new Conversation({
-                  participants: [eventData.buyer_id, eventData.seller_id],
-                  participant_roles: [buyerInfo.role, sellerInfo.role],
-                  is_group: false,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                });
+              case 'property-updated':
+                console.log(`Property updated: ${eventData.property_id || 'unknown'}`);
+                break;
                 
-                const savedConversation = await newConversation.save();
+              case 'property-deleted':
+                console.log(`Property deleted: ${eventData.property_id || 'unknown'}`);
+                break;
                 
-                // Créer un message système pour annoncer la vente
-                const systemMessage = new Message({
-                  sender_id: 'SYSTEM',
-                  sender_role: 'system',
-                  sender_name: 'Système',
-                  content: `Transaction pour la propriété "${eventData.property_title}" initiée. Utilisez cette conversation pour discuter des détails.`,
-                  conversation_id: savedConversation._id,
-                  is_read: false,
-                  is_ai: false,
-                  created_at: new Date().toISOString()
-                });
-                
-                await systemMessage.save();
+              default:
+                // Just log the event without showing "unknown event"
+                console.log(`Received property event with key: ${eventType}`);
+                break;
+            }
+          } else if (topic === 'appointment-events') {
+            // Traiter les événements de rendez-vous
+            if (['APPOINTMENT_CREATED', 'APPOINTMENT_UPDATED', 'APPOINTMENT_DELETED'].includes(eventData.event)) {
+              try {
+                // Vérifier si une conversation existe entre les participants
+                const appointment = eventData.appointment;
+
+                if (appointment && appointment.user_id && appointment.agent_id) {
+                  const existingConversation = await Conversation.findOne({
+                    is_group: false,
+                    participants: { $all: [appointment.user_id, appointment.agent_id] }
+                  });
+
+                  if (existingConversation) {
+                    // Créer un message système pour informer de l'événement de rendez-vous
+                    let content = '';
+
+                    switch (eventData.event) {
+                      case 'APPOINTMENT_CREATED':
+                        content = `Nouveau rendez-vous programmé pour le ${new Date(appointment.date_time).toLocaleString()}`;
+                        break;
+                      case 'APPOINTMENT_UPDATED':
+                        content = `Le rendez-vous du ${new Date(appointment.date_time).toLocaleString()} a été mis à jour. Statut: ${appointment.status}`;
+                        break;
+                      case 'APPOINTMENT_DELETED':
+                        content = `Le rendez-vous a été annulé`;
+                        break;
+                    }
+
+                    const systemMessage = new Message({
+                      sender_id: 'SYSTEM',
+                      sender_role: 'system',
+                      sender_name: 'Système',
+                      receiver_id: null,
+                      content,
+                      conversation_id: existingConversation._id,
+                      is_read: false,
+                      is_ai: false,
+                      created_at: new Date().toISOString()
+                    });
+
+                    await systemMessage.save();
+
+                    // Mettre à jour la date de mise à jour de la conversation
+                    await Conversation.findByIdAndUpdate(existingConversation._id, {
+                      updated_at: new Date().toISOString()
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error('Error processing appointment event in chat service:', error);
               }
             }
           }
@@ -1156,7 +1197,6 @@ async function startServices() {
 // Démarrer les services
 startServices();
 
-// Gérer l'arrêt gracieux
 // Gérer l'arrêt gracieux
 process.on('SIGINT', async () => {
   console.log('Arrêt du service de chat...');

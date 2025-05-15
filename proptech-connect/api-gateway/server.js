@@ -1,7 +1,6 @@
 const express = require('express');
 const { ApolloServer } = require('apollo-server-express');
 const cors = require('cors');
-const bodyParser = require('body-parser');
 require('dotenv').config();
 
 // Importer les schémas et résolveurs GraphQL
@@ -15,6 +14,7 @@ const appointmentRoutes = require('./routes/appointments');
 const userRoutes = require('./routes/users');
 const chatRoutes = require('./routes/chat');
 const notificationRoutes = require('./routes/notifications');
+const predictorRoutes = require('./routes/predictor');
 
 // Middleware d'authentification
 const { authenticateJWT } = require('./middleware/auth');
@@ -25,19 +25,17 @@ const app = express();
 // Middleware
 app.use(cors());
 
-// Apply body parser only for non-GraphQL routes
-app.use((req, res, next) => {
-  if (req.path === '/graphql') {
-    return next();
-  }
-  bodyParser.json({ limit: '50mb' })(req, res, next);
-});
+// Apply body parser for all routes
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Add request logging middleware
 app.use((req, res, next) => {
-  if (req.path === '/graphql') {
-    return next();
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  if (req.method !== 'GET' && req.body && Object.keys(req.body).length > 0) {
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
   }
-  bodyParser.urlencoded({ extended: true, limit: '50mb' })(req, res, next);
+  next();
 });
 
 // Routes API REST
@@ -47,14 +45,19 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/predictor', predictorRoutes);
 
 // Créer le serveur Apollo pour GraphQL
 async function startApolloServer() {
   const apolloServer = new ApolloServer({
+    introspection: true, // Enable introspection for debugging
+    debug: true, // Enable debug mode to get more info on errors
     typeDefs,
     resolvers,
     context: ({ req }) => ({ req }),
     formatError: (err) => {
+      // Get full details of the error
+      console.error('GraphQL Error Details:', JSON.stringify(err, null, 2));
       console.error('GraphQL Error:', err);
       return err;
     }

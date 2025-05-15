@@ -42,7 +42,30 @@ server.addService(propertyProto.PropertyService.service, {
           message: 'Property not found'
         });
       }
-      callback(null, { property });
+      
+      // Format the property response with proper timestamps
+      const formattedProperty = {
+        id: property._id.toString(),
+        title: property.title,
+        description: property.description,
+        price: property.price,
+        location: property.location,
+        address: property.address,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        area: property.area,
+        property_type: property.property_type,
+        owner_id: property.owner_id,
+        features: property.features || [],
+        images: property.images || [],
+        created_at: property.createdAt ? property.createdAt.toISOString() : new Date().toISOString(),
+        updated_at: property.updatedAt ? property.updatedAt.toISOString() : new Date().toISOString(),
+        average_rating: property.average_rating || 0,
+        total_ratings: property.total_ratings || 0,
+        favorited_by: property.favorited_by || []
+      };
+      
+      callback(null, { property: formattedProperty });
     } catch (error) {
       callback({
         code: grpc.status.INTERNAL,
@@ -56,7 +79,7 @@ server.addService(propertyProto.PropertyService.service, {
     try {
       const { 
         location, min_price, max_price, bedrooms, 
-        bathrooms, min_area, property_type, page = 1, limit = 10 
+        bathrooms, min_area, property_type, page = 1, limit = 10, owner_id 
       } = call.request;
 
       let query = {};
@@ -86,6 +109,12 @@ server.addService(propertyProto.PropertyService.service, {
       if (property_type) {
         query.property_type = property_type;
       }
+      
+      // Add owner_id filter if provided
+      if (owner_id) {
+        query.owner_id = owner_id;
+        console.log(`Filtering properties by owner_id: ${owner_id}`);
+      }
 
       const skip = (page - 1) * limit;
 
@@ -94,8 +123,30 @@ server.addService(propertyProto.PropertyService.service, {
         Property.countDocuments(query)
       ]);
 
+      // Format the properties with proper timestamps
+      const formattedProperties = properties.map(property => ({
+        id: property._id.toString(),
+        title: property.title,
+        description: property.description,
+        price: property.price,
+        location: property.location,
+        address: property.address,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        area: property.area,
+        property_type: property.property_type,
+        owner_id: property.owner_id,
+        features: property.features || [],
+        images: property.images || [],
+        created_at: property.createdAt ? property.createdAt.toISOString() : new Date().toISOString(),
+        updated_at: property.updatedAt ? property.updatedAt.toISOString() : new Date().toISOString(),
+        average_rating: property.average_rating || 0,
+        total_ratings: property.total_ratings || 0,
+        favorited_by: property.favorited_by || []
+      }));
+
       callback(null, {
-        properties,
+        properties: formattedProperties,
         total_count: totalCount,
         page,
         limit
@@ -124,7 +175,29 @@ server.addService(propertyProto.PropertyService.service, {
         timestamp: new Date().toISOString()
       });
       
-      callback(null, { property: savedProperty });
+      // Format the property response with proper timestamps
+      const formattedProperty = {
+        id: savedProperty._id.toString(),
+        title: savedProperty.title,
+        description: savedProperty.description,
+        price: savedProperty.price,
+        location: savedProperty.location,
+        address: savedProperty.address,
+        bedrooms: savedProperty.bedrooms,
+        bathrooms: savedProperty.bathrooms,
+        area: savedProperty.area,
+        property_type: savedProperty.property_type,
+        owner_id: savedProperty.owner_id,
+        features: savedProperty.features || [],
+        images: savedProperty.images || [],
+        created_at: savedProperty.createdAt ? savedProperty.createdAt.toISOString() : new Date().toISOString(),
+        updated_at: savedProperty.updatedAt ? savedProperty.updatedAt.toISOString() : new Date().toISOString(),
+        average_rating: savedProperty.average_rating || 0,
+        total_ratings: savedProperty.total_ratings || 0,
+        favorited_by: savedProperty.favorited_by || []
+      };
+      
+      callback(null, { property: formattedProperty });
     } catch (error) {
       console.error('Error in CreateProperty:', error);
       callback({
@@ -161,7 +234,29 @@ server.addService(propertyProto.PropertyService.service, {
         timestamp: new Date().toISOString()
       });
       
-      callback(null, { property: updatedProperty });
+      // Format the property response with proper timestamps
+      const formattedProperty = {
+        id: updatedProperty._id.toString(),
+        title: updatedProperty.title,
+        description: updatedProperty.description,
+        price: updatedProperty.price,
+        location: updatedProperty.location,
+        address: updatedProperty.address,
+        bedrooms: updatedProperty.bedrooms,
+        bathrooms: updatedProperty.bathrooms,
+        area: updatedProperty.area,
+        property_type: updatedProperty.property_type,
+        owner_id: updatedProperty.owner_id,
+        features: updatedProperty.features || [],
+        images: updatedProperty.images || [],
+        created_at: updatedProperty.createdAt ? updatedProperty.createdAt.toISOString() : new Date().toISOString(),
+        updated_at: updatedProperty.updatedAt ? updatedProperty.updatedAt.toISOString() : new Date().toISOString(),
+        average_rating: updatedProperty.average_rating || 0,
+        total_ratings: updatedProperty.total_ratings || 0,
+        favorited_by: updatedProperty.favorited_by || []
+      };
+      
+      callback(null, { property: formattedProperty });
     } catch (error) {
       console.error('Error in UpdateProperty:', error);
       callback({
@@ -213,7 +308,6 @@ server.addService(propertyProto.PropertyService.service, {
         user_name, 
         rating, 
         comment,
-        // Nouvelles catégories
         category_ratings
       } = call.request;
       
@@ -252,12 +346,18 @@ server.addService(propertyProto.PropertyService.service, {
         rating,
         comment,
         visit_verified,
-        category_ratings: {
-          location: category_ratings?.location || rating,
-          value: category_ratings?.value || rating,
-          quality: category_ratings?.quality || rating,
-          amenities: category_ratings?.amenities || rating,
-          neighborhood: category_ratings?.neighborhood || rating
+        category_ratings: category_ratings ? {
+          location: category_ratings.location || rating,
+          value: category_ratings.value || rating,
+          quality: category_ratings.quality || rating,
+          amenities: category_ratings.amenities || rating,
+          neighborhood: category_ratings.neighborhood || rating
+        } : {
+          location: rating,
+          value: rating,
+          quality: rating,
+          amenities: rating,
+          neighborhood: rating
         }
       });
 
@@ -266,7 +366,8 @@ server.addService(propertyProto.PropertyService.service, {
         user_id,
         user_name: reviewerName,
         rating,
-        comment
+        comment,
+        category_ratings: review.category_ratings
       });
 
       await review.save();
@@ -311,7 +412,14 @@ server.addService(propertyProto.PropertyService.service, {
         rating: savedReview.rating,
         comment: savedReview.comment,
         created_at: savedReview.createdAt.toISOString(),
-        updated_at: savedReview.updatedAt.toISOString()
+        updated_at: savedReview.updatedAt.toISOString(),
+        category_ratings: savedReview.category_ratings || {
+          location: savedReview.rating,
+          value: savedReview.rating,
+          quality: savedReview.rating,
+          amenities: savedReview.rating,
+          neighborhood: savedReview.rating
+        }
       };
 
       console.log('Sending formatted review response:', formattedReview);
@@ -1269,13 +1377,36 @@ GetUserFavorites: async (call, callback) => {
       Property.countDocuments({ favorited_by: user_id })
     ]);
 
+    // Format the properties with proper timestamps and structure
+    const formattedProperties = properties.map(property => ({
+      id: property._id.toString(),
+      title: property.title,
+      description: property.description,
+      price: property.price,
+      location: property.location,
+      address: property.address,
+      bedrooms: property.bedrooms,
+      bathrooms: property.bathrooms,
+      area: property.area,
+      property_type: property.property_type,
+      owner_id: property.owner_id,
+      features: property.features || [],
+      images: property.images || [],
+      created_at: property.createdAt ? property.createdAt.toISOString() : new Date().toISOString(),
+      updated_at: property.updatedAt ? property.updatedAt.toISOString() : new Date().toISOString(),
+      average_rating: property.average_rating || 0,
+      total_ratings: property.total_ratings || 0,
+      favorited_by: property.favorited_by || []
+    }));
+
     callback(null, {
-      properties,
+      properties: formattedProperties,
       total_count: totalCount,
       page,
       limit
     });
   } catch (error) {
+    console.error('Error in GetUserFavorites:', error);
     callback({
       code: grpc.status.INTERNAL,
       message: error.message

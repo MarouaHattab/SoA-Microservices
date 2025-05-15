@@ -82,7 +82,7 @@ router.post('/ai', async (req, res) => {
       conversation_id
     });
     
-    res.json(result);
+    res.json({ response: result.response });
   } catch (error) {
     console.error('Error in AI chat:', error);
     res.status(500).json({ message: error.message });
@@ -185,7 +185,6 @@ router.get('/groups', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-// api-gateway/routes/chat.js
 
 // Mettre à jour le statut utilisateur (en ligne, hors ligne, etc.)
 router.post('/status', async (req, res) => {
@@ -241,24 +240,32 @@ router.get('/online-users', async (req, res) => {
 router.post('/typing', async (req, res) => {
   try {
     const { conversation_id, is_typing } = req.body;
+    const userId = req.user.id;
+    
+    console.log(`[API] Updating typing status for user ${userId} in conversation ${conversation_id} to ${is_typing}`);
     
     if (!conversation_id) {
+      console.log('[API] Missing conversation_id');
       return res.status(400).json({ message: 'Conversation ID is required' });
     }
     
     if (typeof is_typing !== 'boolean') {
+      console.log('[API] is_typing is not a boolean');
       return res.status(400).json({ message: 'is_typing must be a boolean' });
     }
     
+    console.log(`[API] Calling gRPC UpdateTypingStatus for user ${userId} in conversation ${conversation_id}`);
+    
     const result = await grpcClients.chatService.UpdateTypingStatusAsync({
-      user_id: req.user.id,
+      user_id: userId,
       conversation_id,
       is_typing
     });
     
+    console.log(`[API] Typing status update result: ${JSON.stringify(result)}`);
     res.json(result);
   } catch (error) {
-    console.error('Error updating typing status:', error);
+    console.error('[API] Error updating typing status:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -267,14 +274,23 @@ router.post('/typing', async (req, res) => {
 router.get('/typing/:conversationId', async (req, res) => {
   try {
     const { conversationId } = req.params;
+    const userId = req.user.id;
+    
+    console.log(`[API] Getting typing users for conversation ${conversationId}, requested by user ${userId}`);
     
     const result = await grpcClients.chatService.GetTypingUsersAsync({
       conversation_id: conversationId
     });
     
-    res.json(result.typing_user_ids);
+    console.log(`[API] Typing users returned from gRPC: ${JSON.stringify(result.typing_user_ids)}`);
+    
+    // Filter out the current user from the typing list (don't show self as typing)
+    const filteredUsers = result.typing_user_ids.filter(id => id !== userId);
+    console.log(`[API] Filtered typing users (excluding requestor): ${JSON.stringify(filteredUsers)}`);
+    
+    res.json(filteredUsers);
   } catch (error) {
-    console.error('Error getting typing users:', error);
+    console.error('[API] Error getting typing users:', error);
     res.status(500).json({ message: error.message });
   }
 });

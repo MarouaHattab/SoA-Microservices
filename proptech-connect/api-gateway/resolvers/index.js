@@ -1,68 +1,89 @@
 const jwt = require('jsonwebtoken');
 const { AuthenticationError, UserInputError } = require('apollo-server-express');
 const grpcClients = require('../grpc-clients');
+const propertyResolvers = require('./property-resolvers');
+const { getAuthUser } = require('../middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-const getAuthUser = (context) => {
-  const authHeader = context.req.headers.authorization;
-  if (!authHeader) {
-    throw new AuthenticationError('Authentication token is required');
+// Helper to convert snake_case to camelCase
+function toCamelCase(obj) {
+  if (obj === null || obj === undefined || typeof obj !== 'object') {
+    return obj;
   }
 
-  const token = authHeader.split('Bearer ')[1];
-  if (!token) {
-    throw new AuthenticationError('Authentication token is invalid');
+  if (Array.isArray(obj)) {
+    return obj.map(item => toCamelCase(item));
   }
 
-  try {
-    const user = jwt.verify(token, JWT_SECRET);
-    return user;
-  } catch (error) {
-    throw new AuthenticationError('Authentication token is invalid');
-  }
-};
+  return Object.keys(obj).reduce((camelObj, key) => {
+    // Convert key from snake_case to camelCase
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    
+    // Convert value recursively if it's an object
+    const value = obj[key];
+    camelObj[camelKey] = toCamelCase(value);
+    
+    return camelObj;
+  }, {});
+}
 
 const resolvers = {
   Query: {
     // User queries
     me: (_, __, context) => {
       const user = getAuthUser(context);
-      return grpcClients.userService.getUserAsync({ id: user.id });
+      return grpcClients.userService.getUserAsync({ id: user.id })
+        .then(result => toCamelCase(result));
     },
     
     user: (_, { id }) => {
-      return grpcClients.userService.getUserAsync({ id });
+      return grpcClients.userService.getUserAsync({ id })
+        .then(result => toCamelCase(result));
     },
     
     users: () => {
-      return grpcClients.userService.getUsersAsync({});
+      return grpcClients.userService.getUsersAsync({})
+        .then(result => {
+          if (result && result.users) {
+            return result.users.map(user => toCamelCase(user));
+          }
+          return [];
+        });
     },
     
-    // Property queries
-    property: (_, { id }) => {
-      return grpcClients.propertyService.getPropertyAsync({ id });
-    },
-    
-    properties: () => {
-      return grpcClients.propertyService.searchPropertiesAsync({});
-    },
-    
-    searchProperties: (_, { input }) => {
-      return grpcClients.propertyService.searchPropertiesAsync(input);
-    },
+    // Property queries - use the dedicated resolver
+    ...propertyResolvers.Query,
     
     // Appointment queries
     appointment: (_, { id }) => {
-      return grpcClients.appointmentService.getAppointmentAsync({ id });
+      return grpcClients.appointmentService.getAppointmentAsync({ id })
+        .then(result => {
+          if (result && result.appointment) {
+            return toCamelCase(result.appointment);
+          }
+          return null;
+        });
     },
     
     userAppointments: (_, { userId }) => {
-      return grpcClients.appointmentService.getUserAppointmentsAsync({ user_id: userId });
+      return grpcClients.appointmentService.getUserAppointmentsAsync({ user_id: userId })
+        .then(result => {
+          if (result && result.appointments) {
+            return result.appointments.map(appointment => toCamelCase(appointment));
+          }
+          return [];
+        });
     },
     
     propertyAppointments: (_, { propertyId }) => {
-      return grpcClients.appointmentService.getPropertyAppointmentsAsync({ property_id: propertyId });
+      return grpcClients.appointmentService.getPropertyAppointmentsAsync({ property_id: propertyId })
+        .then(result => {
+          if (result && result.appointments) {
+            return result.appointments.map(appointment => toCamelCase(appointment));
+          }
+          return [];
+        });
     },
     
     // Nouvelle requête pour les statistiques des rendez-vous
@@ -75,7 +96,7 @@ const resolvers = {
       return grpcClients.appointmentService.getAppointmentStatsAsync({ 
         user_id: userId,
         period
-      });
+      }).then(result => toCamelCase(result));
     },
     
     // Chat queries
@@ -149,9 +170,23 @@ const resolvers = {
           email, password
         });
         
-        return auth;
+        // Transform response to camelCase
+        const camelCaseAuth = toCamelCase(auth);
+        
+        // Validate that required fields exist
+        if (!camelCaseAuth.token || !camelCaseAuth.user) {
+          console.error('Missing required fields in authentication response:', 
+            Object.keys(camelCaseAuth));
+          throw new Error('Invalid authentication response from service');
+        }
+        
+        return camelCaseAuth;
       } catch (error) {
-        throw new AuthenticationError(error.message);
+        // Log the error for debugging
+        console.error(`Authentication error for ${email}: ${error.message}`);
+        
+        // Throw as AuthenticationError with better message
+        throw new AuthenticationError('Invalid email or password');
       }
     },
     
@@ -179,43 +214,8 @@ const resolvers = {
       return grpcClients.userService.deleteUserAsync({ id });
     },
     
-    // Property mutations
-    createProperty: async (_, { input }, context) => {
-      const user = getAuthUser(context);
-      
-      // Ajouter l'ID du propriétaire
-      input.owner_id = user.id;
-      
-      return grpcClients.propertyService.createPropertyAsync(input);
-    },
-    
-    updateProperty: async (_, { id, input }, context) => {
-      const user = getAuthUser(context);
-      
-      // Vérifier que la propriété appartient à l'utilisateur ou que l'utilisateur est admin
-      const property = await grpcClients.propertyService.getPropertyAsync({ id });
-      
-      if (property.owner_id !== user.id && user.role !== 'admin') {
-        throw new AuthenticationError('Not authorized');
-      }
-      
-      return grpcClients.propertyService.updatePropertyAsync({
-        id, ...input
-      });
-    },
-    
-    deleteProperty: async (_, { id }, context) => {
-      const user = getAuthUser(context);
-      
-      // Vérifier que la propriété appartient à l'utilisateur ou que l'utilisateur est admin
-      const property = await grpcClients.propertyService.getPropertyAsync({ id });
-      
-      if (property.owner_id !== user.id && user.role !== 'admin') {
-        throw new AuthenticationError('Not authorized');
-      }
-      
-      return grpcClients.propertyService.deletePropertyAsync({ id });
-    },
+    // Property mutations - use the dedicated resolver
+    ...propertyResolvers.Mutation,
     
     // Appointment mutations
     createAppointment: async (_, { input }, context) => {
@@ -379,13 +379,8 @@ const resolvers = {
     }
   },
   
-  // Résolveurs pour les relations entre types
-  Property: {
-    owner: async (parent) => {
-      if (!parent.ownerId) return null;
-      return grpcClients.userService.getUserAsync({ id: parent.ownerId });
-    }
-  },
+  // Type resolvers
+  Property: propertyResolvers.Property,
   
   Appointment: {
     property: async (parent) => {

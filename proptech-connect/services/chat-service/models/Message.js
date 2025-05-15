@@ -17,7 +17,7 @@ const messageSchema = new mongoose.Schema({
   sender_id: { type: String, required: true },
   sender_role: { type: String, enum: ['buyer', 'seller', 'agent', 'admin'], required: true },
   sender_name: { type: String, required: true },
-  receiver_id: { type: String },
+  receiver_id: { type: String, default: '' },
   content: { type: String },
   attachments: [attachmentSchema],
   conversation_id: { type: String, required: true },

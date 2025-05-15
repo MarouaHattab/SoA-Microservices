@@ -125,7 +125,6 @@ message AIRequest {
 
 message AIResponse {
   string response = 1;
-  repeated Property suggested_properties = 2;
 }
 
 message Property {

@@ -1,0 +1,588 @@
+/* App.css - Enhanced Styling for Real Estate Predictor */
+
+/* Global styles */
+* {
+  box-sizing: border-box;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+}
+
+/* Theme styles */
+.light-theme {
+  --bg-color: #f5f9ff;
+  --card-bg: #ffffff;
+  --header-color: #1565C0;
+  --text-color: #333333;
+  --secondary-color: #0D47A1;
+  --progress-bg: #e3f2fd;
+  --progress-fill: #1976D2;
+  --card-border: #e0e0e0;
+  --hover-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+  --icon-color: #757575;
+  --chip-bg: #e3f2fd;
+  --chip-text: #1565C0;
+  --input-text: #333333;
+  --secondary-text: #555555;
+  --tab-active: #1976D2;
+  --button-text: #ffffff;
+  --prediction-bg: linear-gradient(120deg, #bbdefb, #e3f2fd);
+  --prediction-text: #0D47A1;
+}
+
+.dark-theme {
+  --bg-color: #121212;
+  --card-bg: #1e1e1e;
+  --header-color: #90caf9;
+  --text-color: #ffffff;
+  --secondary-color: #bb86fc;
+  --progress-bg: rgba(255, 255, 255, 0.2);
+  --progress-fill: #bb86fc;
+  --card-border: #333333;
+  --hover-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+  --icon-color: #bb86fc;
+  --chip-bg: #3a3a3a;
+  --chip-text: #bb86fc;
+  --input-text: #ffffff;
+  --secondary-text: #cccccc;
+  --tab-active: #bb86fc;
+  --button-text: #121212;
+  --prediction-bg: linear-gradient(120deg, #2c2c54, #303f9f);
+  --prediction-text: #ffffff;
+}
+
+.dark-theme {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+/* Card styles */
+.light-card {
+  background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+  color: var(--text-color);
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  height: 100%;
+}
+
+.dark-card {
+  background: linear-gradient(to bottom, #1e1e1e, #262626);
+  color: var(--text-color);
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  height: 100%;
+}
+
+/* Header styles */
+.light-header {
+  color: var(--header-color);
+  font-weight: bold;
+  margin-bottom: 16px;
+  position: relative;
+  padding-bottom: 8px;
+}
+
+.light-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 50px;
+  height: 3px;
+  background-color: var(--header-color);
+  border-radius: 3px;
+}
+
+.dark-header {
+  color: var(--header-color);
+  font-weight: bold;
+  margin-bottom: 16px;
+  position: relative;
+  padding-bottom: 8px;
+}
+
+.dark-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 50px;
+  height: 3px;
+  background-color: var(--header-color);
+  border-radius: 3px;
+}
+
+/* Improved dark mode icon visibility */
+.dark-theme .MuiSvgIcon-root {
+  color: var(--icon-color);
+}
+
+.dark-theme .MuiInputBase-root .MuiSvgIcon-root {
+  color: var(--icon-color);
+}
+
+.dark-theme .MuiChip-root {
+  background-color: var(--chip-bg);
+  color: var(--chip-text);
+}
+
+.dark-theme .MuiInputLabel-root {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.dark-theme .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.dark-theme .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.dark-theme .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--secondary-color);
+}
+
+.dark-theme .MuiTab-root {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.dark-theme .MuiTab-root.Mui-selected {
+  color: var(--secondary-color);
+}
+
+/* Enhanced dark mode text visibility */
+.dark-theme .MuiTypography-root {
+  color: var(--text-color);
+}
+
+.dark-theme .MuiTypography-colorTextSecondary {
+  color: var(--secondary-text) !important;
+}
+
+.dark-theme .MuiButton-contained {
+  color: var(--button-text);
+}
+
+.dark-theme .MuiInputBase-input {
+  color: var(--input-text);
+}
+
+.dark-theme .MuiMenuItem-root {
+  color: var(--input-text);
+}
+
+.dark-theme .MuiSelect-select {
+  color: var(--input-text);
+}
+
+.dark-theme .MuiFormLabel-root {
+  color: var(--secondary-text);
+}
+
+.dark-theme .MuiCheckbox-root {
+  color: var(--icon-color);
+}
+
+/* Improved contrast for cards in dark mode */
+.dark-theme .MuiPaper-root {
+  background-color: #1e1e1e;
+}
+
+.dark-theme .MuiCard-root {
+  background-color: #2d2d2d;
+}
+
+.dark-theme .MuiTableCell-root {
+  color: var(--text-color);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-theme .MuiTableHead-root .MuiTableCell-root {
+  background-color: #2d2d2d;
+  color: var(--secondary-color);
+}
+
+/* Prediction card in dark mode */
+.dark-theme .prediction-card {
+  background: var(--prediction-bg) !important;
+}
+
+.dark-theme .prediction-card .MuiTypography-h3 {
+  color: var(--prediction-text) !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Form card enhancements */
+.property-form-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.property-form-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), transparent);
+  border-radius: 0 0 0 100%;
+  z-index: 0;
+}
+
+/* Results card enhancements */
+.results-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.results-card::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(315deg, rgba(33, 150, 243, 0.1), transparent);
+  border-radius: 0 100% 0 0;
+  z-index: 0;
+}
+
+/* Prediction card animation */
+.prediction-card {
+  animation: pulseShadow 3s infinite;
+}
+
+@keyframes pulseShadow {
+  0% {
+    box-shadow: 0 4px 20px rgba(25, 118, 210, 0.1);
+  }
+  50% {
+    box-shadow: 0 4px 25px rgba(25, 118, 210, 0.3);
+  }
+  100% {
+    box-shadow: 0 4px 20px rgba(25, 118, 210, 0.1);
+  }
+}
+
+/* Summary card hover effects */
+.summary-card {
+  transition: all 0.3s ease;
+}
+
+.summary-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--hover-shadow);
+}
+
+/* Factor chips hover effect */
+.factor-chip {
+  transition: all 0.3s ease;
+}
+
+.factor-chip:hover {
+  transform: scale(1.05);
+}
+
+/* Impact progress bars */
+.impact-container .impact-progress {
+  transition: all 0.5s ease;
+}
+
+.impact-container .impact-progress:hover {
+  height: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Price range cards animation */
+.price-range-card {
+  transition: all 0.3s ease;
+}
+
+.price-range-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--hover-shadow);
+}
+
+/* Button enhancements */
+.predict-button {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  padding: 12px;
+  font-weight: bold;
+  text-transform: none;
+  font-size: 1rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.predict-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+  rgba(255, 255, 255, 0),
+  rgba(255, 255, 255, 0.2),
+  rgba(255, 255, 255, 0));
+  transition: all 0.5s ease;
+}
+
+.predict-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.predict-button:hover::after {
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Property types info card */
+.property-types-info {
+  transition: all 0.3s ease;
+}
+
+.property-types-info:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 960px) {
+  .light-card, .dark-card {
+    padding: 16px;
+  }
+
+  .light-header, .dark-header {
+    font-size: 1.2rem;
+  }
+
+  .prediction-card {
+    padding: 16px !important;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--progress-bg);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--progress-fill);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary-color);
+}
+
+/* Dark mode for body - applied directly */
+body.dark-mode {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+/* Custom styles for enhanced UI */
+.app-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 2rem;
+  position: relative;
+}
+
+.dark-mode .app-container {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+}
+
+.hero-section {
+  backdrop-filter: blur(10px);
+  border-radius: 1rem;
+  padding: 2rem;
+  text-align: center;
+  transition: transform 0.3s ease-in-out;
+}
+
+.hero-section:hover {
+  transform: translateY(-4px);
+}
+
+.prediction-card {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+}
+
+.prediction-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 70% 30%, rgba(25, 118, 210, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.dark-mode .prediction-card::before {
+  background: radial-gradient(circle at 70% 30%, rgba(144, 202, 249, 0.1) 0%, transparent 50%);
+}
+
+.feature-chip {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.feature-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(25, 118, 210, 0.3);
+}
+
+.dark-mode .feature-chip:hover {
+  box-shadow: 0 4px 8px rgba(144, 202, 249, 0.3);
+}
+
+.submit-button {
+  background: linear-gradient(45deg, #1976d2 30%, #d81b60 90%);
+  transition: all 0.3s ease;
+}
+
+.dark-mode .submit-button {
+  background: linear-gradient(45deg, #90caf9 30%, #f48fb1 90%);
+}
+
+.submit-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(25, 118, 210, 0.3);
+}
+
+.dark-mode .submit-button:hover {
+  box-shadow: 0 4px 8px rgba(144, 202, 249, 0.3);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* Glassmorphism effects */
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.dark-mode .glass-card {
+  background: rgba(45, 45, 45, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Enhanced form inputs */
+.form-input {
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.form-input:hover {
+  transform: translateY(-2px);
+}
+
+.form-input:focus {
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+}
+
+.dark-mode .form-input:focus {
+  box-shadow: 0 0 0 2px rgba(144, 202, 249, 0.2);
+}
+
+/* Image upload area */
+.image-upload {
+  border: 2px dashed #1976d2;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dark-mode .image-upload {
+  border-color: #90caf9;
+}
+
+.image-upload:hover {
+  background: rgba(25, 118, 210, 0.05);
+  transform: translateY(-2px);
+}
+
+.dark-mode .image-upload:hover {
+  background: rgba(144, 202, 249, 0.05);
+}
+
+/* Enhanced cards */
+.enhanced-card {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.enhanced-card:hover {
+  transform: translateY(-4px);
+}
+
+/* Footer styling */
+.footer {
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  margin-top: 4rem;
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.dark-mode .footer {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(45deg, #1976d2 30%, #d81b60 90%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dark-mode .gradient-text {
+  background: linear-gradient(45deg, #90caf9 30%, #f48fb1 90%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
