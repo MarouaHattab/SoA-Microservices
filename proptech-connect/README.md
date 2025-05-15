@@ -544,3 +544,48 @@ proptech-connect/
 │      ├── backend-flask/   # Backend Flask avec modèle XGBoost
 │      └── frontend-react/  # Frontend React avec Material-UI
 ``` 
+
+# GraphQL Schema Testing
+
+This project allows you to test the GraphQL schema locally without setting up the entire infrastructure.
+
+## Setup and Testing
+
+1. Install dependencies:
+   ```
+   npm install
+   ```
+
+2. Run the test:
+   ```
+   npm test
+   ```
+
+The test script will:
+- Create a local GraphQL server with a mock database
+- Run example queries against the appointment-related parts of the schema
+- Output the results of each query
+
+## Schema Details
+
+The schema includes the following main features:
+- User management
+- Property listings
+- Appointment booking and management
+- Chat and messaging functionality
+- AI property recommendations
+
+## Test Queries
+
+The test focuses on appointments and includes:
+- Querying user appointments with property and agent details
+- Getting appointment statistics
+- Testing mutations for responding to appointments
+- Testing mutations for adding feedback to appointments
+
+## Extending the Tests
+
+To test additional parts of the schema:
+1. Add more mock data to the appropriate arrays
+2. Add new query/mutation strings to the `queries` object
+3. Update the `runTests()` function to execute your new tests 
