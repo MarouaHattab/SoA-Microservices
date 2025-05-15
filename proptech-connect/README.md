@@ -14,7 +14,7 @@ PropTech Connect est une plateforme immobilière basée sur des microservices qu
 
 ## 🏗️ Architecture et Choix Techniques
 
-[Architecture](diagramme.png)
+![Architecture](diagramme.png)
 
 Notre architecture est basée sur les microservices, ce qui nous permet de développer, déployer et faire évoluer chaque composant de manière indépendante. Cela offre plusieurs avantages:
 
