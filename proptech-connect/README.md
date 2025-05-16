@@ -202,22 +202,26 @@ Notre architecture est basée sur les microservices, ce qui nous permet de déve
   - Notifie le service Notification lors des changements de statut des rendez-vous
 
 ### 💬 Service Chat
-- **Technologie**: Node.js + gRPC + MongoDB
+- **Technologie**: Node.js + gRPC + MongoDB + Gemini AI
 - **Responsabilités**:
   - Messagerie instantanée entre utilisateurs
   - Stockage de l'historique des conversations
+  - Assistance IA via agent conversationnel Gemini
+  - Réponses automatisées aux questions des utilisateurs
 - **Schéma de données principal**:
   ```
   Conversation {
     id: string
     participants: string[] (IDs utilisateur)
+    type: string (user_to_user, user_to_agent)
     messages: [
       {
         id: string
-        sender: string (ID utilisateur)
+        sender: string (ID utilisateur ou "agent")
         content: string
         timestamp: timestamp
         read: boolean
+        isAIGenerated: boolean
       }
     ]
     createdAt: timestamp
@@ -229,10 +233,20 @@ Notre architecture est basée sur les microservices, ce qui nous permet de déve
   - `GetMessages`: Récupérer l'historique des messages d'une conversation
   - `CreateConversation`: Créer une nouvelle conversation
   - `ListConversations`: Lister les conversations d'un utilisateur
+  - `AskAgent`: Poser une question à l'agent IA
+  - `StartAgentConversation`: Démarrer une conversation avec l'agent IA
+- **Intégration Gemini AI**:
+  - Agent conversationnel alimenté par l'API Gemini de Google
+  - Capable de répondre aux questions sur les propriétés et le processus immobilier
+  - Peut être invoqué dans une conversation utilisateur-utilisateur via "@agent"
+  - Support de conversations dédiées utilisateur-agent pour assistance continue
+  - Contextualisation basée sur l'historique des conversations et les données immobilières
 - **Interactions**:
   - Invoqué par l'API Gateway pour la gestion des conversations
   - Consulte le service Utilisateur pour vérifier les identités des participants
   - Notifie le service Notification lors de la réception de nouveaux messages
+  - Interagit avec le service Propriété pour obtenir des données sur les biens immobiliers
+  - Communique avec l'API Gemini pour générer des réponses pertinentes
 
 ### 🔔 Service Notification
 - **Technologie**: Node.js + gRPC + Kafka
@@ -319,38 +333,157 @@ Le service est composé de deux composants principaux:
 
 ## 🧪 Tests et Validation
 
-Notre approche de test est complète, couvrant différentes couches et technologies de notre architecture:
+Notre approche de test est complète, couvrant différentes couches et technologies de notre architecture. Pour voir des exemples concrets et des captures d'écran de tests, consultez le fichier **"SOA Capture"** dans le dépôt de code.
 
-### 🔍 Tests des Services gRPC
+### 🔍 Tests des Services gRPC avec Postman
 
-Les services gRPC sont testés à l'aide de clients Node.js qui se connectent directement aux services. Nous avons créé plusieurs scripts de test pour chaque service:
+Les services gRPC peuvent être testés à l'aide de Postman, qui offre un excellent support pour gRPC depuis sa version 9.0+. Voici comment configurer et tester chaque service:
 
-```bash
-cd api-gateway
-node test-login-simple.js        # Test du service utilisateur
-node simple-property-test.js     # Test du service propriété
-node simple-appointment-test.js  # Test du service rendez-vous
-```
+#### Configuration de Postman pour gRPC:
+1. Créer une nouvelle requête gRPC dans Postman
+2. Importer les fichiers proto depuis le dossier `/proto`
+3. Sélectionner le service et la méthode à tester
+4. Configurer l'adresse du serveur (ex: `localhost:50051` pour le User Service)
 
-**Example de sortie réussie pour un test d'authentification**:
-```
-Connexion au service utilisateur...
-Service connecté!
-Envoi des identifiants...
-Authentification réussie!
-Token JWT: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-Informations utilisateur:
-{
-  id: "60d21b4667d0d8992e610c85",
-  name: "Test User",
-  email: "test@example.com",
-  role: "buyer"
-}
-```
+#### Service Utilisateur (port 50051/50052):
+- **GetUser**: 
+  ```json
+  {
+    "id": "votre_id_utilisateur"
+  }
+  ```
+- **CreateUser**: 
+  ```json
+  {
+    "name": "Nouvel Utilisateur",
+    "email": "user@example.com",
+    "password": "password123",
+    "role": "buyer",
+    "phone": "+33612345678"
+  }
+  ```
+- **UpdateUser**: 
+  ```json
+  {
+    "id": "votre_id_utilisateur",
+    "name": "Nom Modifié",
+    "email": "updated@example.com"
+  }
+  ```
+- **Authenticate**: 
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "password123"
+  }
+  ```
 
-### 🔬 Tests des APIs GraphQL
+#### Service Propriété (port 50052):
+- **GetProperty**: 
+  ```json
+  {
+    "id": "votre_id_propriete"
+  }
+  ```
+- **SearchProperties**: 
+  ```json
+  {
+    "location": "Tunis",
+    "min_price": 100000,
+    "max_price": 500000,
+    "bedrooms": 2,
+    "property_type": "apartment"
+  }
+  ```
+- **CreateProperty**: 
+  ```json
+  {
+    "title": "Nouvel Appartement",
+    "description": "Bel appartement avec vue",
+    "price": 250000,
+    "location": "Tunis",
+    "address": "123 Rue de Carthage",
+    "bedrooms": 2,
+    "bathrooms": 1,
+    "area": 85,
+    "propertyType": "apartment",
+    "owner_id": "votre_id_proprietaire",
+    "features": ["balcony", "parking"],
+    "images": ["https://example.com/img1.jpg"]
+  }
+  ```
 
-Les requêtes GraphQL peuvent être testées via l'interface GraphQL Playground exposée par l'API Gateway:
+#### Service Rendez-vous (port 50053):
+- **GetAppointment**: 
+  ```json
+  {
+    "id": "votre_id_rendezvous"
+  }
+  ```
+- **CreateAppointment**: 
+  ```json
+  {
+    "property_id": "votre_id_propriete",
+    "user_id": "votre_id_utilisateur",
+    "agent_id": "id_agent",
+    "date_time": "2023-05-20T10:00:00Z",
+    "status": "pending",
+    "notes": "Visite pour potentiel achat"
+  }
+  ```
+
+#### Service Chat (port 50054):
+- **SendMessage**: 
+  ```json
+  {
+    "conversation_id": "votre_id_conversation",
+    "sender_id": "votre_id_utilisateur",
+    "content": "Bonjour, la propriété est-elle toujours disponible?"
+  }
+  ```
+- **GetMessages**: 
+  ```json
+  {
+    "conversation_id": "votre_id_conversation"
+  }
+  ```
+- **AskAgent**: 
+  ```json
+  {
+    "conversation_id": "votre_id_conversation",
+    "user_id": "votre_id_utilisateur",
+    "query": "Quelles sont les meilleures périodes pour acheter un bien immobilier?",
+    "context": {
+      "property_id": "id_propriete_optionnel",
+      "location": "localisation_optionnelle"
+    }
+  }
+  ```
+- **StartAgentConversation**: 
+  ```json
+  {
+    "user_id": "votre_id_utilisateur",
+    "initial_query": "Je cherche à investir dans l'immobilier, pouvez-vous me conseiller?"
+  }
+  ```
+
+#### Service Notification (port 50055):
+- **GetUserNotifications**: 
+  ```json
+  {
+    "user_id": "votre_id_utilisateur"
+  }
+  ```
+- **MarkNotificationAsRead**: 
+  ```json
+  {
+    "notification_id": "votre_id_notification"
+  }
+  ```
+
+### 🔬 Tests des APIs GraphQL avec Apollo
+
+Les requêtes GraphQL peuvent être testées via Apollo Studio ou l'interface GraphQL Playground exposée par l'API Gateway:
 
 1. Démarrer l'API Gateway:
 ```bash
@@ -362,9 +495,9 @@ node server.js
 http://localhost:3000/graphql
 ```
 
-3. Exemples de requêtes de test:
+3. Exemples de requêtes et mutations:
 
-**Requête d'authentification**:
+**Mutation d'authentification**:
 ```graphql
 mutation {
   login(email: "user@example.com", password: "password123") {
@@ -379,78 +512,304 @@ mutation {
 }
 ```
 
-**Requête de recherche de propriétés**:
+**Mutation de création d'utilisateur**:
 ```graphql
-query {
-  getProperties(
-    filter: {
-      minPrice: 100000
-      maxPrice: 300000
-      bedrooms: 2
-      city: "Tunis"
-    }
-    limit: 5
+mutation {
+  register(
+    name: "Nouveau Utilisateur",
+    email: "nouveau@example.com",
+    password: "motdepasse123",
+    role: "buyer",
+    phone: "+21612345678"
   ) {
-    id
-    title
-    description
-    price
-    address {
-      street
-      city
-      zipCode
-    }
-    features {
-      bedrooms
-      bathrooms
-      area
-    }
-    owner {
+    token
+    user {
       id
       name
       email
-    }
-    images
-    reviews {
-      rating
-      comment
-      author {
-        name
-      }
+      role
     }
   }
 }
 ```
 
-### 🌐 Tests des APIs REST
-
-Pour tester les endpoints REST, nous utilisons des outils comme Postman ou cURL. Voici quelques exemples de tests:
-
-**Authentification**:
-```bash
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "password123"}'
+**Mutation de création de propriété**:
+```graphql
+mutation {
+  createProperty(
+    input: {
+      title: "Bel Appartement",
+      description: "Appartement spacieux avec vue sur mer",
+      price: 350000,
+      location: "Sousse",
+      address: "456 Rue de la Mer",
+      bedrooms: 3,
+      bathrooms: 2,
+      area: 110,
+      propertyType: "apartment",
+      features: ["balcony", "sea_view", "parking"],
+      images: ["https://example.com/property1.jpg"]
+    }
+  ) {
+    id
+    title
+    price
+    location
+    createdAt
+  }
+}
 ```
 
-**Récupération des propriétés**:
-```bash
-curl -X GET http://localhost:3000/api/properties \
-  -H "Authorization: Bearer ${TOKEN}"
+**Mutation de mise à jour de propriété**:
+```graphql
+mutation {
+  updateProperty(
+    id: "votre_id_propriete", 
+    input: {
+      title: "Appartement Rénové",
+      description: "Récemment rénové avec finitions premium",
+      price: 380000,
+      location: "Sousse",
+      address: "456 Rue de la Mer",
+      bedrooms: 3,
+      bathrooms: 2,
+      area: 110,
+      propertyType: "apartment",
+      features: ["balcony", "sea_view", "parking", "renovated"]
+    }
+  ) {
+    id
+    title
+    price
+    updatedAt
+  }
+}
 ```
 
-**Création d'un rendez-vous**:
-```bash
-curl -X POST http://localhost:3000/api/appointments \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  -d '{
-    "propertyId": "123",
-    "datetime": "2023-05-20T10:00:00Z",
-    "duration": 60,
-    "notes": "Visite de l'appartement"
-  }'
+**Requête de recherche de propriétés**:
+```graphql
+query {
+  searchProperties(
+    input: {
+      location: "Tunis",
+      minPrice: 100000,
+      maxPrice: 500000,
+      bedrooms: 2,
+      propertyType: "apartment"
+    }
+  ) {
+    properties {
+      id
+      title
+      description
+      price
+      location
+      bedrooms
+      bathrooms
+      area
+      propertyType
+      images
+      owner {
+        id
+        name
+      }
+    }
+    totalCount
+    page
+    limit
+  }
+}
 ```
+
+**Mutation pour poser une question à l'agent IA**:
+```graphql
+mutation {
+  askAgent(
+    conversationId: "votre_id_conversation",
+    query: "Quels documents sont nécessaires pour l'achat d'un bien immobilier?"
+  ) {
+    id
+    content
+    sender {
+      id
+      name
+    }
+    isAIGenerated
+    createdAt
+  }
+}
+```
+
+**Mutation pour démarrer une conversation avec l'agent IA**:
+```graphql
+mutation {
+  startAgentConversation(
+    query: "Bonjour, je souhaite investir dans l'immobilier à Tunis"
+  ) {
+    conversation {
+      id
+      type
+      createdAt
+    }
+    initialResponse {
+      id
+      content
+      isAIGenerated
+      createdAt
+    }
+  }
+}
+```
+
+**N'oubliez pas d'inclure le header d'authentification pour les requêtes protégées**:
+```
+{
+  "Authorization": "Bearer votre_token_jwt"
+}
+```
+
+### 🌐 Tests des APIs REST avec Postman
+
+Pour tester les endpoints REST, Postman offre une interface intuitive:
+
+#### Configuration de Postman pour REST:
+1. Créer une nouvelle collection pour PropTech Connect
+2. Configurer une variable d'environnement `token` pour stocker le JWT
+3. Ajouter un header d'autorisation `Authorization: Bearer {{token}}` pour les requêtes protégées
+
+#### Endpoints d'Authentification:
+- **Login**: 
+  - Méthode: `POST`
+  - URL: `http://localhost:3000/api/auth/login`
+  - Body:
+    ```json
+    {
+      "email": "user@example.com",
+      "password": "password123"
+    }
+    ```
+- **Register**: 
+  - Méthode: `POST`
+  - URL: `http://localhost:3000/api/auth/register`
+  - Body:
+    ```json
+    {
+      "name": "Nouveau Utilisateur",
+      "email": "nouveau@example.com",
+      "password": "motdepasse123",
+      "role": "buyer",
+      "phone": "+21612345678"
+    }
+    ```
+
+#### Endpoints de Propriété:
+- **Récupérer toutes les propriétés**: 
+  - Méthode: `GET`
+  - URL: `http://localhost:3000/api/properties`
+  
+- **Récupérer une propriété**: 
+  - Méthode: `GET`
+  - URL: `http://localhost:3000/api/properties/:id`
+  
+- **Créer une propriété**: 
+  - Méthode: `POST`
+  - URL: `http://localhost:3000/api/properties`
+  - Body:
+    ```json
+    {
+      "title": "Nouvel Appartement",
+      "description": "Bel appartement avec vue",
+      "price": 250000,
+      "location": "Tunis",
+      "address": "123 Rue de Carthage",
+      "bedrooms": 2,
+      "bathrooms": 1,
+      "area": 85,
+      "propertyType": "apartment",
+      "features": ["balcony", "parking"],
+      "images": ["https://example.com/img1.jpg"]
+    }
+    ```
+  
+- **Mettre à jour une propriété**: 
+  - Méthode: `PUT`
+  - URL: `http://localhost:3000/api/properties/:id`
+  - Body:
+    ```json
+    {
+      "title": "Appartement Rénové",
+      "price": 275000,
+      "description": "Récemment rénové avec finitions premium"
+    }
+    ```
+  
+- **Supprimer une propriété**: 
+  - Méthode: `DELETE`
+  - URL: `http://localhost:3000/api/properties/:id`
+
+#### Endpoints de Rendez-vous:
+- **Créer un rendez-vous**: 
+  - Méthode: `POST`
+  - URL: `http://localhost:3000/api/appointments`
+  - Body:
+    ```json
+    {
+      "propertyId": "votre_id_propriete",
+      "dateTime": "2023-05-20T10:00:00Z",
+      "duration": 60,
+      "notes": "Visite de l'appartement"
+    }
+    ```
+  
+- **Récupérer les rendez-vous d'un utilisateur**: 
+  - Méthode: `GET`
+  - URL: `http://localhost:3000/api/appointments/user`
+
+#### Endpoints de Chat:
+- **Récupérer les conversations**: 
+  - Méthode: `GET`
+  - URL: `http://localhost:3000/api/chat/conversations`
+  
+- **Envoyer un message**: 
+  - Méthode: `POST`
+  - URL: `http://localhost:3000/api/chat/messages`
+  - Body:
+    ```json
+    {
+      "conversationId": "votre_id_conversation",
+      "content": "Bonjour, est-ce que la propriété est toujours disponible?"
+    }
+    ```
+
+- **Poser une question à l'agent IA**: 
+  - Méthode: `POST`
+  - URL: `http://localhost:3000/api/chat/agent/ask`
+  - Body:
+    ```json
+    {
+      "conversationId": "votre_id_conversation",
+      "query": "Quels sont les facteurs qui influencent le prix de l'immobilier?"
+    }
+    ```
+
+- **Démarrer une conversation avec l'agent IA**: 
+  - Méthode: `POST`
+  - URL: `http://localhost:3000/api/chat/agent/conversation`
+  - Body:
+    ```json
+    {
+      "initialQuery": "Je cherche des conseils pour un premier achat immobilier"
+    }
+    ```
+
+#### Endpoints de Notification:
+- **Récupérer les notifications**: 
+  - Méthode: `GET`
+  - URL: `http://localhost:3000/api/notifications`
+  
+- **Marquer comme lu**: 
+  - Méthode: `PUT`
+  - URL: `http://localhost:3000/api/notifications/:id/read`
 
 ## 🚨 Défis Rencontrés et Solutions
 
@@ -479,48 +838,24 @@ curl -X POST http://localhost:3000/api/appointments \
 
 **Solution**: Exposition d'une API REST par le service prédicteur et création d'un adaptateur dans l'API Gateway pour transformer les appels entre les différents formats.
 
-## 🛠️ Outils de Débogage et Tests
 
-Plusieurs outils de test sont disponibles dans le répertoire de l'API Gateway pour faciliter le débogage:
 
-- **Tests gRPC**: 
-  - `grpc-test-template.js`: Template réutilisable pour créer des tests gRPC
-  - `test-login-simple.js`, `test-login-fix.js`: Tests d'authentification
-  - `debug-login-flow.js`: Analyse détaillée du flux de connexion
-  - `debug-auth.js`: Débogage des problèmes d'authentification
-
-- **Tests de Propriétés**: 
-  - `simple-property-test.js`: Test basique du service propriété
-  - `debug-property-grpc.js`: Débogage des appels gRPC au service propriété
-  - `debug-property-auth.js`: Test de l'authentification dans le contexte des propriétés
-  - `test-property-ownership.js`: Vérification des mécanismes de propriété
-
-- **Tests de Rendez-vous**: 
-  - `simple-appointment-test.js`: Test basique du service rendez-vous
-  - `test-appointments.js`: Tests complets des fonctionnalités de rendez-vous
-  - `debug-appointments.js`: Débogage des problèmes de rendez-vous
-
-- **Outils de Correction**:
-  - `fix-login-mutation.js`: Correction des problèmes de mutation login GraphQL
-  - `fix-apollo-resolver.js`: Correction des résolveurs Apollo
-  - `fix-grpc-client.js`: Correction des problèmes de client gRPC
-
-## 🔎 Guide de Dépannage
 
 ### Problèmes Courants
 1. **Erreur de connexion gRPC**:
-   - Vérifier que le service est en cours d'exécution
-   - Vérifier les ports et adresses dans les fichiers de configuration
-   - Exemple de correction: `node fix-grpc-client.js`
+   - Vérifier que le service microservice est bien démarré et en cours d'exécution
+   - Vérifier que les ports correspondent à ceux configurés (User:50051/50052, Property:50052, Appointment:50053, Chat:50054, Notification:50055)
+   - Vérifier les configurations réseau pour s'assurer que les ports ne sont pas bloqués
 
 2. **Erreur GraphQL "Cannot return null for non-nullable field"**:
    - Problème de résolveur GraphQL retournant null pour un champ requis
-   - Solution: `node fix-apollo-resolver.js`
+   - Vérifier que les données retournées par les services gRPC contiennent bien tous les champs requis
+   - S'assurer que les transformations entre snake_case et camelCase sont correctement appliquées
 
 3. **Erreur d'authentification JWT**:
-   - Vérifier la validité et l'expiration du token
-   - Vérifier la clé secrète JWT dans les fichiers .env
-   - Outil de débogage: `node debug-auth.js`
+   - Vérifier la validité et l'expiration du token (ils expirent par défaut après 24h)
+   - Vérifier que la clé secrète JWT est identique dans tous les fichiers .env et services
+   - Vérifier le format du header Authorization (doit être "Bearer " suivi du token)
 
 ## 📂 Structure des Fichiers
 
@@ -545,47 +880,3 @@ proptech-connect/
 │      └── frontend-react/  # Frontend React avec Material-UI
 ``` 
 
-# GraphQL Schema Testing
-
-This project allows you to test the GraphQL schema locally without setting up the entire infrastructure.
-
-## Setup and Testing
-
-1. Install dependencies:
-   ```
-   npm install
-   ```
-
-2. Run the test:
-   ```
-   npm test
-   ```
-
-The test script will:
-- Create a local GraphQL server with a mock database
-- Run example queries against the appointment-related parts of the schema
-- Output the results of each query
-
-## Schema Details
-
-The schema includes the following main features:
-- User management
-- Property listings
-- Appointment booking and management
-- Chat and messaging functionality
-- AI property recommendations
-
-## Test Queries
-
-The test focuses on appointments and includes:
-- Querying user appointments with property and agent details
-- Getting appointment statistics
-- Testing mutations for responding to appointments
-- Testing mutations for adding feedback to appointments
-
-## Extending the Tests
-
-To test additional parts of the schema:
-1. Add more mock data to the appropriate arrays
-2. Add new query/mutation strings to the `queries` object
-3. Update the `runTests()` function to execute your new tests 

@@ -60,7 +60,30 @@ async function startApolloServer() {
       console.error('GraphQL Error Details:', JSON.stringify(err, null, 2));
       console.error('GraphQL Error:', err);
       return err;
-    }
+    },
+    plugins: [
+      {
+        async requestDidStart(ctx) {
+          console.log('Request started:', {
+            query: ctx.request.query,
+            operationName: ctx.request.operationName,
+            variables: ctx.request.variables,
+          });
+          
+          return {
+            async didEncounterErrors(ctx) {
+              console.error('GraphQL encountered errors:', ctx.errors);
+            },
+            async willSendResponse(ctx) {
+              console.log('Response data:', JSON.stringify(ctx.response.data, null, 2));
+              if (ctx.response.errors) {
+                console.error('Response errors:', JSON.stringify(ctx.response.errors, null, 2));
+              }
+            }
+          };
+        }
+      }
+    ]
   });
 
   await apolloServer.start();

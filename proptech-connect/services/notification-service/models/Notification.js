@@ -1,4 +1,3 @@
-// Mise à jour du fichier models/Notification.js dans le service de notification
 
 const mongoose = require('mongoose');
 

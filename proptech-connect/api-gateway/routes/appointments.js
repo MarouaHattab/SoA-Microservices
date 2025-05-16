@@ -1,4 +1,3 @@
-// api-gateway/routes/appointments.js
 const express = require('express');
 const router = express.Router();
 const grpcClients = require('../grpc-clients');

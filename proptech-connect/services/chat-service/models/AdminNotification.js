@@ -1,4 +1,3 @@
-// chat-service/models/AdminNotification.js
 const mongoose = require('mongoose');
 
 const adminNotificationSchema = new mongoose.Schema({

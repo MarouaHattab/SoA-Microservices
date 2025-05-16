@@ -1,4 +1,3 @@
-// chat-service/server.js
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 const mongoose = require('mongoose');

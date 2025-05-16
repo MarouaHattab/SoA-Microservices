@@ -3,9 +3,7 @@ const router = express.Router();
 const axios = require('axios');
 const { authenticateJWT } = require('../middleware/auth');
 
-// Configuration for the predictor service
-// For local development, use localhost instead of the Docker service name
-// Configuration for the predictor service
+
 
 // Get cities list - require authentication
 router.get('/cities', authenticateJWT, async (req, res) => {

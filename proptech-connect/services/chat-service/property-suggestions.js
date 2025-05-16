@@ -1,4 +1,3 @@
-// chat-service/property-suggestions.js
 const { propertyClient } = require('./property-service-client');
 
 // Mock properties for testing

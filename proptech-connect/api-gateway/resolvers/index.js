@@ -150,33 +150,134 @@ const resolvers = {
     }
   },
   
-  Mutation: {
+    Mutation: {
     // User mutations
     register: async (_, { name, email, password, role, phone }) => {
-      try {
-        const { user, token } = await grpcClients.userService.createUserAsync({
-          name, email, password, role, phone
-        });
+      console.log(`[DEBUG] Register mutation called with email: ${email}, role: ${role}`);
         
-        return { user, token };
-      } catch (error) {
-        throw new UserInputError(error.message);
+      // Extremely defensive programming - each step in its own try-catch
+      try {
+        // 1. Check if client is initialized
+        if (!grpcClients) {
+          console.error('[FATAL] grpcClients is undefined');
+          return null; // Return null now that we made the field nullable
+        }
+        
+        if (!grpcClients.userService) {
+          console.error('[FATAL] userService client is not initialized');
+          return null;
+        }
+        
+        if (!grpcClients.userService.createUserAsync) {
+          console.error('[FATAL] createUserAsync method is undefined');
+          return null;
+        }
+        
+        // 2. Prepare payload
+        const payload = {
+          name: name || '',
+          email: email || '',
+          password: password || '',
+          role: role || 'buyer',
+          phone: phone || ''
+        };
+        
+        console.log('[DEBUG] About to call userService.createUserAsync with:', JSON.stringify(payload, null, 2));
+        
+        // 3. Call gRPC method with timeout handling
+        let result;
+        try {
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timed out after 10 seconds')), 10000);
+          });
+          
+          result = await Promise.race([
+            grpcClients.userService.createUserAsync(payload),
+            timeoutPromise
+          ]);
+        } catch (grpcError) {
+          console.error('[ERROR] gRPC call failed:', grpcError);
+          console.error('[ERROR] Error stack:', grpcError.stack);
+          return null;
+        }
+        
+        // 4. Validate response
+        console.log('[DEBUG] gRPC call succeeded, result:', result ? JSON.stringify(result, null, 2) : 'null');
+        
+        if (!result) {
+          console.error('[ERROR] gRPC call returned null result');
+          return null;
+        }
+        
+        // Even if we have a result, user might be missing
+        if (!result.user) {
+          console.error('[ERROR] gRPC response missing user object:', result);
+          return null;
+        }
+        
+        // 5. Create properly structured response
+        try {
+          const user = toCamelCase(result.user);
+          const token = result.token || jwt.sign(
+            { id: user.id, email: user.email, role: user.role },
+            JWT_SECRET,
+            { expiresIn: '1d' }
+          );
+          
+          console.log('[DEBUG] Successfully created response:', { 
+            hasUser: !!user, 
+            hasToken: !!token,
+            userId: user.id
+          });
+          
+          return { 
+            user, 
+            token 
+          };
+        } catch (formatError) {
+          console.error('[ERROR] Error formatting response:', formatError);
+          console.error('[ERROR] Error stack:', formatError.stack);
+          return null;
+        }
+      } catch (unexpectedError) {
+        // This is our ultimate fallback for any unhandled errors
+        console.error('[FATAL] Unhandled error in register mutation:', unexpectedError);
+        console.error('[FATAL] Stack trace:', unexpectedError.stack);
+        return null;
       }
     },
     
     login: async (_, { email, password }) => {
       try {
-        const auth = await grpcClients.userService.authenticateAsync({
+        console.log(`Attempting to log in user with email: ${email}`);
+        
+        const result = await grpcClients.userService.authenticateAsync({
           email, password
         });
         
+        console.log('Authentication service response:', JSON.stringify(result));
+        
+        // Handle potential missing fields in response
+        if (!result) {
+          console.error('Invalid authentication response from service');
+          throw new Error('Authentication failed: Invalid service response');
+        }
+        
         // Transform response to camelCase
-        const camelCaseAuth = toCamelCase(auth);
+        const camelCaseAuth = toCamelCase(result);
+        
+        // Generate token if not provided
+        if (!camelCaseAuth.token && camelCaseAuth.user) {
+          camelCaseAuth.token = jwt.sign(
+            { id: camelCaseAuth.user.id, email: camelCaseAuth.user.email, role: camelCaseAuth.user.role },
+            JWT_SECRET,
+            { expiresIn: '1d' }
+          );
+        }
         
         // Validate that required fields exist
         if (!camelCaseAuth.token || !camelCaseAuth.user) {
-          console.error('Missing required fields in authentication response:', 
-            Object.keys(camelCaseAuth));
+          console.error('Missing required fields in authentication response:', Object.keys(camelCaseAuth));
           throw new Error('Invalid authentication response from service');
         }
         

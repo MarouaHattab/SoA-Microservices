@@ -1,4 +1,4 @@
-// api-gateway/routes/notifications.js
+
 const express = require('express');
 const router = express.Router();
 const { authenticateJWT, isAdmin } = require('../middleware/auth');

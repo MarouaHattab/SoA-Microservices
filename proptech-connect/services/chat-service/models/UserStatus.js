@@ -1,4 +1,3 @@
-// chat-service/models/UserStatus.js
 const mongoose = require('mongoose');
 
 const userStatusSchema = new mongoose.Schema({
