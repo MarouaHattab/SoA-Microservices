@@ -1,3 +1,4 @@
+// chat-service/models/Conversation.js
 const mongoose = require('mongoose');
 
 const conversationSchema = new mongoose.Schema({

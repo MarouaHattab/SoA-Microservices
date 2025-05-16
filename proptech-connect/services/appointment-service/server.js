@@ -1,3 +1,4 @@
+// Mise à jour du server.js pour le service d'appointement
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 const mongoose = require('mongoose');

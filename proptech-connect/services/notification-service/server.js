@@ -1,3 +1,4 @@
+// Mise à jour dans notification-service/server.js
 
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');

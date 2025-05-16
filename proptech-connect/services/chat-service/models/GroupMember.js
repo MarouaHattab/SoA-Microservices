@@ -1,3 +1,4 @@
+// chat-service/models/GroupMember.js
 const mongoose = require('mongoose');
 
 const groupMemberSchema = new mongoose.Schema({

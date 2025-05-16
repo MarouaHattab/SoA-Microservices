@@ -1,3 +1,4 @@
+// chat-service/models/Message.js (mise à jour)
 const mongoose = require('mongoose');
 
 const attachmentSchema = new mongoose.Schema({

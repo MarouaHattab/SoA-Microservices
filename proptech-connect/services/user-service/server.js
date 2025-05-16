@@ -106,17 +106,53 @@ server.addService(userProto.UserService.service, {
   // Créer un nouvel utilisateur
   createUser: async (call, callback) => {
     try {
+      console.log('[USER-SERVICE] createUser called with:', JSON.stringify(call.request));
+      
+      // Validation input
+      if (!call.request.name || !call.request.email || !call.request.password) {
+        console.error('[USER-SERVICE] Missing required fields');
+        return callback({
+          code: grpc.status.INVALID_ARGUMENT,
+          message: 'Required fields missing: name, email, or password'
+        });
+      }
+      
       // Vérifier si l'email existe déjà
       const existingUser = await User.findOne({ email: call.request.email });
       if (existingUser) {
+        console.log('[USER-SERVICE] Email already exists:', call.request.email);
         return callback({
           code: grpc.status.ALREADY_EXISTS,
           message: 'Email already in use'
         });
       }
       
-      const newUser = new User(call.request);
-      const savedUser = await newUser.save();
+      // Create and save user with explicit error handling
+      let savedUser;
+      try {
+        const newUser = new User({
+          name: call.request.name,
+          email: call.request.email,
+          password: call.request.password,
+          role: call.request.role || 'buyer',
+          phone: call.request.phone || ''
+        });
+        savedUser = await newUser.save();
+      } catch (mongoError) {
+        console.error('[USER-SERVICE] MongoDB save error:', mongoError);
+        return callback({
+          code: grpc.status.INTERNAL,
+          message: `Database error: ${mongoError.message}`
+        });
+      }
+      
+      if (!savedUser || !savedUser._id) {
+        console.error('[USER-SERVICE] User was not saved correctly');
+        return callback({
+          code: grpc.status.INTERNAL,
+          message: 'Failed to save user'
+        });
+      }
       
       // Exclure le mot de passe
       const userWithoutPassword = {
@@ -124,29 +160,74 @@ server.addService(userProto.UserService.service, {
         name: savedUser.name,
         email: savedUser.email,
         role: savedUser.role,
-        phone: savedUser.phone,
+        phone: savedUser.phone || '',
         created_at: savedUser.createdAt.toISOString(),
         updated_at: savedUser.updatedAt.toISOString()
       };
       
-      // Publier un événement Kafka
-      await producer.send({
-        topic: 'user-events',
-        messages: [
+      // Generate JWT token
+      let token;
+      try {
+        token = jwt.sign(
           { 
-            value: JSON.stringify({
-              event: 'USER_CREATED',
-              user: userWithoutPassword
-            }) 
-          }
-        ]
-      });
+            id: savedUser._id,
+            email: savedUser.email,
+            role: savedUser.role
+          },
+          JWT_SECRET,
+          { expiresIn: '1d' }
+        );
+      } catch (jwtError) {
+        console.error('[USER-SERVICE] JWT generation error:', jwtError);
+        return callback({
+          code: grpc.status.INTERNAL,
+          message: 'Failed to generate authentication token'
+        });
+      }
       
-      callback(null, { user: userWithoutPassword });
+      // Ensure we have both required outputs
+      if (!token) {
+        console.error('[USER-SERVICE] Token generation failed');
+        return callback({
+          code: grpc.status.INTERNAL,
+          message: 'Failed to generate authentication token'
+        });
+      }
+      
+      // Try to publish to Kafka but don't fail if it doesn't work
+      try {
+        await producer.send({
+          topic: 'user-events',
+          messages: [
+            { 
+              value: JSON.stringify({
+                event: 'USER_CREATED',
+                user: userWithoutPassword
+              }) 
+            }
+          ]
+        });
+      } catch (kafkaError) {
+        console.error('[USER-SERVICE] Kafka publish error:', kafkaError);
+        // Continue since this is non-critical
+      }
+      
+      // Log the successful response we're about to send
+      console.log('[USER-SERVICE] User created successfully:', userWithoutPassword.id);
+      console.log('[USER-SERVICE] Response contains token:', !!token);
+      console.log('[USER-SERVICE] Response contains user object:', !!userWithoutPassword);
+      
+      // Return the complete response
+      callback(null, { 
+        user: userWithoutPassword,
+        token: token
+      });
     } catch (error) {
+      console.error('[USER-SERVICE] Error creating user:', error);
+      console.error('[USER-SERVICE] Error stack:', error.stack);
       callback({
         code: grpc.status.INTERNAL,
-        message: error.message
+        message: `Internal server error: ${error.message}`
       });
     }
   },
@@ -314,10 +395,11 @@ server.addService(userProto.UserService.service, {
 const PORT = process.env.PORT || 50052;
 server.bindAsync(`0.0.0.0:${PORT}`, grpc.ServerCredentials.createInsecure(), (error, port) => {
   if (error) {
-    console.error('Failed to bind server:', error);
+    console.error('[USER-SERVICE] Failed to bind server:', error);
     return;
   }
-  console.log(`User service running on port ${port}`);
+  console.log(`[USER-SERVICE] User service running on 0.0.0.0:${port} - ready to accept connections`);
+  console.log('[USER-SERVICE] Service will be accessible at localhost:50052 from other containers or same machine');
   server.start();
 });
 
